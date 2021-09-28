@@ -25,13 +25,11 @@ public class FetchingThread implements Runnable {
     //Composants graphiques
     private String outputFolder;
     private JProgressBar progressBar;
-    private JButton generateButton;
 	
-	public FetchingThread(GoogleAPI googleAPI, JProgressBar progressBar, JButton generateButton) {
+	public FetchingThread(GoogleAPI googleAPI, JProgressBar progressBar) {
 		this.googleAPI = googleAPI;
 		this.outputFolder = "package";
 		this.progressBar = progressBar;
-		this.generateButton = generateButton;
 	}
 	
 	//Permet de définir le répertoire de sortie
@@ -51,7 +49,7 @@ public class FetchingThread implements Runnable {
 			Utils.print(e1.toString(), Utils.ERROR);
 		}
 		
-		if(rootFolder != null) {
+		if (rootFolder != null) {
 			//On récupère les sous-dossiers, qui correspondent aux différentes routes
 			List<File> routeFolders = null;
 			try {
@@ -75,7 +73,7 @@ public class FetchingThread implements Runnable {
 				}
 			}
 
-			
+			// 370 / 378
 			progressBar.setMaximum(listGdocs.size());
 			Utils.print("Nombre de fichiers à télécharger : " + listGdocs.size() + ".");
 			
@@ -90,7 +88,8 @@ public class FetchingThread implements Runnable {
 					//On récupère le contenu du fichier
 					String content = googleAPI.getGdoc(file.getId());
 					Utils.print("Évaluation du fichier " + file.getName());
-					Utils.print("\tId : " + file.getId());
+					//debug :
+					//Utils.print("\tId : " + file.getId());
 
 					String filename = "";
 					
@@ -104,7 +103,7 @@ public class FetchingThread implements Runnable {
 					//Il ne faut pas qu'il y ait de conflit dans la regex
 					boolean isScriptFile = false;
 					ArrayList<String> scriptInfos = new ArrayList<>();
-					while(matcher.find()) {
+					while (matcher.find()) {
 						isScriptFile = true;
 						scriptInfos.add(matcher.group(1));
 						scriptInfos.add(matcher.group(2));
@@ -197,7 +196,7 @@ public class FetchingThread implements Runnable {
 					} else if(isDicFile) {
 						filename = dicInfos.get(0);
 					} else {
-						Utils.print("Fichier non supporté");
+						Utils.print("Fichier non supporté", Utils.ERROR);
 					}
 
 					if(!filename.equals("")) {
@@ -219,7 +218,6 @@ public class FetchingThread implements Runnable {
 		} else {
 			Utils.print("Le répertoire de base n'a pas été trouvé.", Utils.ERROR);
 		}
-		generateButton.setEnabled(true);
 	}
 	
 	
