@@ -14,6 +14,9 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import java.awt.event.*;
+import java.io.File;
+
 public class Main extends JFrame {
 	
 	//Paramètres
@@ -21,7 +24,6 @@ public class Main extends JFrame {
     
     //Composants graphiques
     private JButton connectionButton;
-    private JButton generateButton;
     private JTextField outputFolderTextField;
     private JTextArea textOutput;
     private JProgressBar progressBar;
@@ -31,11 +33,21 @@ public class Main extends JFrame {
     
     public Main() {
     	
-    	//Configuration des diverses éléments graphique
-    	connectionButton = new JButton("Connexion");
-    	generateButton = new JButton("Go !");
-    	generateButton.setEnabled(false);
+    	//Configuration des divers éléments graphiques
+    	connectionButton = new JButton("Télécharger");
     	outputFolderTextField = new JTextField(outputFolder);
+		//ajouter le listener sur le JTextField
+		outputFolderTextField.addActionListener(new ActionListener() {
+			//capturer un événement sur le JTextField
+			public void actionPerformed(ActionEvent e) {
+				//récupérer et afficher le contenu de JTextField dans la console
+				Utils.print("Nouveau répertoire de destination : " + outputFolderTextField.getText());
+				//setOutputFolder(outputFolderTextField.getText());
+
+				//Crée un nouveau répertoire s'il n'existe pas déjà
+				createDirectory();
+			}
+		});
     	textOutput = new JTextArea();
     	textOutput.setRows(15);
     	textOutput.setEditable(false);
@@ -52,44 +64,52 @@ public class Main extends JFrame {
 				googleAPI = new GoogleAPI();
 				connectionButton.setEnabled(false);
 				connectionButton.setText("Connecté");
-				generateButton.setEnabled(true);
 				Utils.print("Connecté à l'API Google Drive.\n");
 			} catch (GeneralSecurityException | IOException e1) {
 				Utils.print(e1.toString(), Utils.ERROR);
 			}
-		});
-    	
-    	//Listener sur le deuxième bouton qui lance un second thread
-    	//Ce thread se charge de télécharger tous les fichiers de script
-    	generateButton.addActionListener(e -> {
-    		generateButton.setEnabled(false);
-    		FetchingThread ft = new FetchingThread(googleAPI, progressBar, generateButton);
+
+			// Démarre le téléchargement de tous les fichiers de script
+			FetchingThread ft = new FetchingThread(googleAPI, progressBar);
     		ft.setOutputFolder(this.outputFolder);
     		Thread t = new Thread(ft);
     		t.start();
-    	});
+			// Crée le répertoire si celui-ci n'existe pas
+			createDirectory();
+		});
     	
-    	//Mise en page de la fenêtre
+    	//Mise en page de la fenêtre 
     	this.setTitle("Fate/Stay Night Packager");
     	this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    	this.setSize(600, 400);
-    	topPane.add(new JLabel("API Google : "));
+    	this.setSize(600, 374);
+    	topPane.add(new JLabel(" API Google + début : "));
     	topPane.add(connectionButton);
-    	topPane.add(new JLabel("Générer les fichiers : "));
-    	topPane.add(generateButton);
-    	topPane.add(new JLabel("Répertoire de sortie : "));
+    	topPane.add(new JLabel(" Répertoire de sortie : "));
     	topPane.add(outputFolderTextField);
-    	topPane.setLayout(new GridLayout(3, 2));    
+    	topPane.setLayout(new GridLayout(2, 2));    
     	
     	this.add(topPane, BorderLayout.NORTH);
     	this.add(progressBar, BorderLayout.CENTER);
-    	JScrollPane js = new JScrollPane(textOutput);
-    	js.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    	this.add(js, BorderLayout.SOUTH);
+    	JScrollPane scrollPane = new JScrollPane(textOutput);
+    	scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		this.add(scrollPane, BorderLayout.SOUTH);
     	
     	this.setLocationRelativeTo(null);
     	this.setVisible(true);
     }
+
+	/**
+	 * Crée un répertoire du nom du JTextField si celui-ci n'existe pas déjà
+	 */
+	public void createDirectory() {
+		String directoryName = outputFolderTextField.getText();
+
+		File directory = new File(directoryName);
+		if (!directory.exists()){
+			Utils.print("Répertoire \" " + directoryName + " \" inexistant donc créé\n");
+			directory.mkdir();
+		}
+	}
 
 	public static void main(String[] args) {
 		Main main = new Main();
