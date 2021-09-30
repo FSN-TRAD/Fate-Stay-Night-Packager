@@ -26,8 +26,6 @@ public class FetchingThread implements Runnable {
     private String outputFolder;
     private JProgressBar progressBar;
 
-	private boolean hasEnded = false;
-
 	public FetchingThread(GoogleAPI googleAPI, JProgressBar progressBar) {
 		this.googleAPI = googleAPI;
 		this.outputFolder = "package";
