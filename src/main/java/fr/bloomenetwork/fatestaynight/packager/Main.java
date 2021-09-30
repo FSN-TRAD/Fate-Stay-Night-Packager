@@ -42,7 +42,6 @@ public class Main extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 //récupérer et afficher le contenu de JTextField dans la console
                 Utils.print("Nouveau répertoire de destination : " + outputFolderTextField.getText());
-                //setOutputFolder(outputFolderTextField.getText());
 
                 //Crée un nouveau répertoire s'il n'existe pas déjà
                 createDirectory();
@@ -71,7 +70,8 @@ public class Main extends JFrame {
 
             // Démarre le téléchargement de tous les fichiers de script
             FetchingThread ft = new FetchingThread(googleAPI, progressBar);
-            ft.setOutputFolder(this.outputFolder);
+            ft.setOutputFolder(outputFolderTextField.getText());
+            outputFolderTextField.setEditable(false);
             Thread t = new Thread(ft);
             t.start();
             // Crée le répertoire si celui-ci n'existe pas
