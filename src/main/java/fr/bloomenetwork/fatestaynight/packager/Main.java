@@ -89,6 +89,7 @@ public class Main extends JFrame {
             FetchingThread ftUBW = new FetchingThread(googleAPI, progressBarUBW, "Unlimited Blade Works");
             FetchingThread ftHF = new FetchingThread(googleAPI, progressBarHF, "Heavens Feel");
             FetchingThread ftStatuts = new FetchingThread(googleAPI, progressBarHF, "Statuts");
+
             ftFate.setOutputFolder(outputFolderTextField.getText());
             ftUBW.setOutputFolder(outputFolderTextField.getText());
             ftHF.setOutputFolder(outputFolderTextField.getText());
@@ -109,21 +110,22 @@ public class Main extends JFrame {
         //Mise en page de la fenêtre 
         this.setTitle("Fate/Stay Night Packager - 0.7 requinDr");
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        this.setSize(600, 400);
+        this.setSize(600, 374);
         topPane.add(new JLabel(" API Google + début : "));
         topPane.add(connectionButton);
         topPane.add(new JLabel(" Répertoire de sortie : "));
         topPane.add(outputFolderTextField);
         topPane.setLayout(new GridLayout(2, 2));    
         
-        progressPane.add(new JLabel(" Fate : "));
+        progressPane.add(new JLabel(" Fate ", JLabel.CENTER));
+        progressPane.add(new JLabel(" Unlimited Blade Works ", JLabel.CENTER));
+        progressPane.add(new JLabel(" Heaven's Feel + Statuts ", JLabel.CENTER));
+
         progressPane.add(progressBarFate, BorderLayout.CENTER);
-        progressPane.add(new JLabel(" Unlimited Blade Works : "));
         progressPane.add(progressBarUBW, BorderLayout.CENTER);
-        progressPane.add(new JLabel(" Heaven's Feel + Statuts : "));
         progressPane.add(progressBarHF, BorderLayout.CENTER);
-        GridLayout gridLayout = new GridLayout(3,1);
-        gridLayout.setVgap(1);
+
+        GridLayout gridLayout = new GridLayout(2,3);
         progressPane.setLayout(gridLayout);
         
 
