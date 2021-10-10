@@ -25,11 +25,13 @@ public class FetchingThread implements Runnable {
     //Composants graphiques
     private String outputFolder;
     private JProgressBar progressBar;
+	private String folderToDownload;
 
-	public FetchingThread(GoogleAPI googleAPI, JProgressBar progressBar) {
+	public FetchingThread(GoogleAPI googleAPI, JProgressBar progressBar, String folderToDownload) {
 		this.googleAPI = googleAPI;
 		this.outputFolder = "package";
 		this.progressBar = progressBar;
+		this.folderToDownload = folderToDownload;
 	}
 	
 	//Permet de définir le répertoire de sortie
@@ -53,7 +55,8 @@ public class FetchingThread implements Runnable {
 			//On récupère les sous-dossiers, qui correspondent aux différentes routes
 			List<File> routeFolders = null;
 			try {
-				routeFolders = googleAPI.getSubFiles(rootFolder, " and mimeType = 'application/vnd.google-apps.folder'");
+				routeFolders = googleAPI.getSubFiles(rootFolder, " and mimeType = 'application/vnd.google-apps.folder' and name = '" + folderToDownload + "'");
+				//routeFolders = googleAPI.getSubFiles(rootFolder, " and mimeType = 'application/vnd.google-apps.folder'");
 			} catch (IOException e1) {
 				Utils.print(e1.toString(), Utils.ERROR);
 			}
@@ -73,7 +76,6 @@ public class FetchingThread implements Runnable {
 				}
 			}
 
-			// 370 / 378
 			progressBar.setMaximum(listGdocs.size());
 			Utils.print("Nombre de fichiers à télécharger : " + listGdocs.size() + ".");
 			
@@ -101,8 +103,8 @@ public class FetchingThread implements Runnable {
 					//Un peu fragile ici
 					//La boucle n'est censée faire qu'un tour
 					//Il ne faut pas qu'il y ait de conflit dans la regex
-					boolean isScriptFile = false;
 					ArrayList<String> scriptInfos = new ArrayList<>();
+					boolean isScriptFile = false;
 					while (matcher.find()) {
 						isScriptFile = true;
 						scriptInfos.add(matcher.group(1));
@@ -148,6 +150,7 @@ public class FetchingThread implements Runnable {
 						dicInfos.add(file.getName());
 					}
 
+
 					if(isScriptFile){
 						//Génération du nom du fichier
 						//D'abord le nom de la route
@@ -170,7 +173,11 @@ public class FetchingThread implements Runnable {
 						filename += Utils.numberToJapaneseString(Integer.parseInt(scriptInfos.get(1))) + "日目";
 						//Et enfin la scène et l'extension .ks
 						filename += "-" + String.format("%02d", Integer.parseInt(scriptInfos.get(2))) + ".ks";
-					} else if(isPrologueFile){
+					} else if(isFcfFile) {
+						filename = fcfInfos.get(0);
+					} else if(isDicFile) {
+						filename = dicInfos.get(0);
+					} else if(isPrologueFile) {
 						filename += "プロローグ";
 						filename +=  prologueInfos.get(0);
 						filename += "日目.ks";
@@ -191,10 +198,6 @@ public class FetchingThread implements Runnable {
 						filename += "エピローグ";
 						filename += epilogueInfos.get(1);
 						filename += ".ks";
-					} else if(isFcfFile) {
-						filename = fcfInfos.get(0);
-					} else if(isDicFile) {
-						filename = dicInfos.get(0);
 					} else {
 						Utils.print("Fichier non supporté", Utils.ERROR);
 					}
@@ -214,7 +217,7 @@ public class FetchingThread implements Runnable {
 					Utils.print("Fichier invalide.", Utils.ERROR);
 				}
 			}
-			Utils.print("Fini !");
+			Utils.print(folderToDownload + " entièrement téléchargé !");
 		} else {
 			Utils.print("Le répertoire de base n'a pas été trouvé.", Utils.ERROR);
 		}
