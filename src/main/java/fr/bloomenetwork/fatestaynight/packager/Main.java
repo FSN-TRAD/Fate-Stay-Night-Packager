@@ -14,6 +14,7 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.BorderFactory;
 
 import java.awt.event.*;
 import java.io.File;
@@ -56,17 +57,23 @@ public class Main extends JFrame {
         System.setOut(new PrintStreamCapturer(textOutput, System.out));
         System.setErr(new PrintStreamCapturer(textOutput, System.err, "[ERROR]"));
         JPanel topPane = new JPanel();
+        //Contient les barres de chargement
         JPanel progressPane = new JPanel();
+        //Ajoute un espace au dessus
+        progressPane.setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
+        // Barre de chargement Fate
         progressBarFate = new JProgressBar();
         progressBarFate.setMinimum(0);
         progressBarFate.setStringPainted(true);
         progressBarFate.setForeground(new Color(5, 67, 149));
         progressBarFate.setBorderPainted(false);
+        // Barre de chargement UBW
         progressBarUBW = new JProgressBar();
         progressBarUBW.setMinimum(0);
         progressBarUBW.setStringPainted(true);
         progressBarUBW.setForeground(new Color(134, 18, 5));
         progressBarUBW.setBorderPainted(false);
+        // Barre de chargement HF
         progressBarHF = new JProgressBar();
         progressBarHF.setMinimum(0);
         progressBarHF.setStringPainted(true);
@@ -115,24 +122,23 @@ public class Main extends JFrame {
         topPane.add(connectionButton);
         topPane.add(new JLabel(" Répertoire de sortie : "));
         topPane.add(outputFolderTextField);
-        topPane.setLayout(new GridLayout(2, 2));    
+        topPane.setLayout(new GridLayout(2, 2)); 
         
+        //Barres de chargement
         progressPane.add(new JLabel(" Fate ", JLabel.CENTER));
         progressPane.add(new JLabel(" Unlimited Blade Works ", JLabel.CENTER));
         progressPane.add(new JLabel(" Heaven's Feel + Statuts ", JLabel.CENTER));
-
         progressPane.add(progressBarFate, BorderLayout.CENTER);
         progressPane.add(progressBarUBW, BorderLayout.CENTER);
         progressPane.add(progressBarHF, BorderLayout.CENTER);
-
-        GridLayout gridLayout = new GridLayout(2,3);
-        progressPane.setLayout(gridLayout);
+        progressPane.setLayout(new GridLayout(2,3));
         
+        JScrollPane scrollPane = new JScrollPane(textOutput);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setBorder(null);
 
         this.add(topPane, BorderLayout.NORTH);
         this.add(progressPane, BorderLayout.CENTER);
-        JScrollPane scrollPane = new JScrollPane(textOutput);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         this.add(scrollPane, BorderLayout.SOUTH);
         
         this.setLocationRelativeTo(null);
