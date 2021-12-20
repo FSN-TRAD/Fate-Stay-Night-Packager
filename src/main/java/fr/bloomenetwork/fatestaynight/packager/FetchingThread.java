@@ -2,13 +2,11 @@ package fr.bloomenetwork.fatestaynight.packager;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.swing.JButton;
 import javax.swing.JProgressBar;
 
 import com.google.api.services.drive.model.File;
@@ -77,7 +75,7 @@ public class FetchingThread implements Runnable {
 			}
 
 			progressBar.setMaximum(listGdocs.size());
-			Utils.print("Nombre de fichiers à télécharger : " + listGdocs.size() + ".");
+			Utils.print(folderToDownload + " : " + listGdocs.size() + " fichiers à télécharger.");
 			
 			int i = 0;
 			
@@ -89,7 +87,7 @@ public class FetchingThread implements Runnable {
 				try {
 					//On récupère le contenu du fichier
 					String content = googleAPI.getGdoc(file.getId());
-					Utils.print("Évaluation du fichier " + file.getName());
+					//Utils.print("Évaluation du fichier " + file.getName());
 					//debug :
 					//Utils.print("\tId : " + file.getId());
 
@@ -199,22 +197,22 @@ public class FetchingThread implements Runnable {
 						filename += epilogueInfos.get(1);
 						filename += ".ks";
 					} else {
-						Utils.print("Fichier non supporté", Utils.ERROR);
+						Utils.print("Fichier " + file.getName() + " non supporté.", Utils.ERROR);
 					}
 
 					if(!filename.equals("")) {
 						//On écrit le docx
-						Utils.print("\tTéléchargement du fichier docx et conversion.");
+						//Utils.print("\tTéléchargement du fichier docx et conversion.");
 						InputStream docxStream = googleAPI.getDocx(file.getId());
 						//On convertit et enfin on écrit le fichier
 						Utils.docxToKsFile(docxStream, outputFolder + "/" + filename);
-						Utils.print("\tFichier " + filename +" écrit.");
+						Utils.print("Fichier " + filename +" écrit  \t(" + file.getName() + ").");
 					}
 					
 				} catch (IOException e1) {
-					Utils.print("Erreur lors de l'écriture.", Utils.ERROR);
+					Utils.print("Erreur lors de l'écriture de " + file.getName() + ".", Utils.ERROR);
 				} catch (Exception e1) {
-					Utils.print("Fichier invalide.", Utils.ERROR);
+					Utils.print("Fichier " + file.getName() + " invalide.", Utils.ERROR);
 				}
 			}
 			Utils.print(folderToDownload + " entièrement téléchargé !");

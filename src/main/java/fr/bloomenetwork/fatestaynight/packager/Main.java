@@ -3,6 +3,7 @@ package fr.bloomenetwork.fatestaynight.packager;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.Color;
+import java.awt.FlowLayout;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
@@ -26,7 +27,7 @@ public class Main extends JFrame {
     
     //Composants graphiques
     private JButton connectionButton;
-    private JTextField outputFolderTextField;
+    private JTextField tfOutputFolder;
     private JTextArea textOutput;
     private JProgressBar progressBarFate;
     private JProgressBar progressBarUBW;
@@ -39,13 +40,13 @@ public class Main extends JFrame {
         
         //Configuration des divers éléments graphiques
         connectionButton = new JButton("Télécharger");
-        outputFolderTextField = new JTextField(outputFolder);
+        tfOutputFolder = new JTextField(outputFolder, 16);
         //ajouter le listener sur le JTextField
-        outputFolderTextField.addActionListener(new ActionListener() {
+        tfOutputFolder.addActionListener(new ActionListener() {
             //capturer un événement sur le JTextField
             public void actionPerformed(ActionEvent e) {
                 //récupérer et afficher le contenu de JTextField dans la console
-                Utils.print("Nouveau répertoire de destination : " + outputFolderTextField.getText());
+                Utils.print("Nouveau répertoire de destination : " + tfOutputFolder.getText());
 
                 //Crée un nouveau répertoire s'il n'existe pas déjà
                 createDirectory();
@@ -56,7 +57,7 @@ public class Main extends JFrame {
         textOutput.setEditable(false);
         System.setOut(new PrintStreamCapturer(textOutput, System.out));
         System.setErr(new PrintStreamCapturer(textOutput, System.err, "[ERROR]"));
-        JPanel topPane = new JPanel();
+        JPanel topPane = new JPanel(new FlowLayout(FlowLayout.LEFT));
         //Contient les barres de chargement
         JPanel progressPane = new JPanel();
         //Ajoute un espace au dessus
@@ -85,7 +86,7 @@ public class Main extends JFrame {
             try {
                 googleAPI = new GoogleAPI();
                 connectionButton.setEnabled(false);
-                connectionButton.setText("Connecté");
+                connectionButton.setText("Téléchargement");
                 Utils.print("Connecté à l'API Google Drive.\n");
             } catch (GeneralSecurityException | IOException e1) {
                 Utils.print(e1.toString(), Utils.ERROR);
@@ -97,11 +98,11 @@ public class Main extends JFrame {
             FetchingThread ftHF = new FetchingThread(googleAPI, progressBarHF, "Heavens Feel");
             FetchingThread ftStatuts = new FetchingThread(googleAPI, progressBarHF, "Statuts");
 
-            ftFate.setOutputFolder(outputFolderTextField.getText());
-            ftUBW.setOutputFolder(outputFolderTextField.getText());
-            ftHF.setOutputFolder(outputFolderTextField.getText());
-            ftStatuts.setOutputFolder(outputFolderTextField.getText());
-            outputFolderTextField.setEditable(false);
+            ftFate.setOutputFolder(tfOutputFolder.getText());
+            ftUBW.setOutputFolder(tfOutputFolder.getText());
+            ftHF.setOutputFolder(tfOutputFolder.getText());
+            ftStatuts.setOutputFolder(tfOutputFolder.getText());
+            tfOutputFolder.setEditable(false);
             Thread tFate = new Thread(ftFate);
             tFate.start();
             Thread tUBW = new Thread(ftUBW);
@@ -115,14 +116,13 @@ public class Main extends JFrame {
         });
         
         //Mise en page de la fenêtre 
-        this.setTitle("Fate/Stay Night Packager - 0.7 requinDr");
+        this.setTitle("Fate/Stay Night Packager - 0.8 requinDr");
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setSize(600, 374);
-        topPane.add(new JLabel(" API Google + début : "));
-        topPane.add(connectionButton);
+        
         topPane.add(new JLabel(" Répertoire de sortie : "));
-        topPane.add(outputFolderTextField);
-        topPane.setLayout(new GridLayout(2, 2)); 
+        topPane.add(tfOutputFolder);
+        topPane.add(connectionButton);
         
         //Barres de chargement
         progressPane.add(new JLabel(" Fate ", JLabel.CENTER));
@@ -138,8 +138,8 @@ public class Main extends JFrame {
         scrollPane.setBorder(null);
 
         this.add(topPane, BorderLayout.NORTH);
-        this.add(progressPane, BorderLayout.CENTER);
-        this.add(scrollPane, BorderLayout.SOUTH);
+        this.add(progressPane, BorderLayout.SOUTH);
+        this.add(scrollPane);
         
         this.setLocationRelativeTo(null);
         this.setVisible(true);
@@ -149,11 +149,11 @@ public class Main extends JFrame {
      * Crée un répertoire du nom du JTextField si celui-ci n'existe pas déjà
      */
     public void createDirectory() {
-        String directoryName = outputFolderTextField.getText();
+        String directoryName = tfOutputFolder.getText();
 
         File directory = new File(directoryName);
         if (!directory.exists()){
-            Utils.print("Répertoire \" " + directoryName + " \" inexistant donc créé\n");
+            Utils.print("Répertoire \"" + directoryName + "\" inexistant donc créé\n");
             directory.mkdir();
         }
     }
