@@ -4,8 +4,14 @@ Permet de générer les fichiers de scripts KiriKiri pour le jeu Fate/Stay Night
 
 ## Compilation
 
-Il faut récupérer le fichier `credentials.json` depuis l'API de google et le placer dans le dossier `src/main/resources`.
+Récupérer le fichier `credentials.json` depuis l'API de google et le placer dans le dossier `src/main/resources`.
 
 ## Utilisation
 
-Il faut autoriser l'accès à Google Drive. Ensuite le programme se charge de créer les fichiers dans le dossier spécifié.
+1) Avoir au moins Java 11.
+2) Autoriser l'accès à Google Drive.  
+Ensuite le programme se charge de créer les fichiers dans le dossier spécifié.
+
+
+## Crédits
+Basé sur https://github.com/louisld/Fate-Stay-Night-Packager  
