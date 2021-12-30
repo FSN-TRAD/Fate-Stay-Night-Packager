@@ -98,6 +98,11 @@ public class Utils {
 		// Remplace l'espace avant la ponctuation par une espace insécable :
 		txtContent = txtContent.replaceAll("« ", "«\u00A0");
 		txtContent = txtContent.replaceAll(" »", "\u00A0»");
+		txtContent = txtContent.replaceAll(" \\?", "\u00A0?");
+		txtContent = txtContent.replaceAll(" \\!", "\u00A0!");
+		txtContent = txtContent.replaceAll("&\u00A0!", "& \\!"); //Fix
+		txtContent = txtContent.replaceAll(" :", "\u00A0:");
+		txtContent = txtContent.replaceAll(" ;", "\u00A0;");
 		java.nio.file.Files.write(Paths.get(filename), txtContent.getBytes(StandardCharsets.UTF_8));
 	}
 }
