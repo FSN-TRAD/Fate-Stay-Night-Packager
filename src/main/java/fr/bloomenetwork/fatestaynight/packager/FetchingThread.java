@@ -205,7 +205,7 @@ public class FetchingThread implements Runnable {
 						//Utils.print("\tTéléchargement du fichier docx et conversion.");
 						InputStream docxStream = googleAPI.getDocx(file.getId());
 						//On convertit et enfin on écrit le fichier
-						Utils.docxToKsFile(docxStream, outputFolder + "/" + filename);
+						Utils.docxToKsFile(docxStream, outputFolder + "/" + filename, file.getName());
 						Utils.print("Fichier " + filename +" écrit  \t(" + file.getName() + ").");
 					}
 					

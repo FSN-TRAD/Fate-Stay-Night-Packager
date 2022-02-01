@@ -11,8 +11,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.unix4j.Unix4j;
-
 public class Utils {
 
 	private static final String[] numbers = {"", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
@@ -20,6 +18,11 @@ public class Utils {
 	public static final int INFO = 0;
 	public static final int DEBUG = 1;
 	public static final int ERROR = 2;
+	public static final int SYNTAX = 3;
+
+	private static boolean[] level_printed = new boolean[]{true, true, true, true};
+	private static boolean[] level_logged = new boolean[]{false, false, false, false};
+	private static StringBuilder log = new StringBuilder();
 
 	//Retourne l'entier, compris entre 1 et 99, fournit en paramètre
 	//en un String écrit en japonais
@@ -50,26 +53,56 @@ public class Utils {
 
 	}
 	public static void print(String message, int level) {
-		String output = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + "]";
-		switch(level) {
-		case INFO:
-			output += "[INFO]";
-			break;
-		case DEBUG:
-			output += "[DEBUG]";
-			break;
-		case ERROR:
-			output += "[ERROR]";
-			break;
+		if(level_logged[level] || level_printed[level]) {
+			String output = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + "]";
+			switch(level) {
+			case INFO:
+				output += "[INFO]";
+				break;
+			case DEBUG:
+				output += "[DEBUG]";
+				break;
+			case ERROR:
+				output += "[ERROR]";
+				break;
+			case SYNTAX:
+				output += "[SYNTAX]";
+				break;
+			}
+			output += message;
+			if(level_printed[level])
+				System.out.println(output);
+			if (level_logged[level])
+				log.append(output).append("\n");
 		}
-		output += message;
-		System.out.println(output);
 	}
 	public static void print(String message) {
 		print(message, INFO);
 	}
 
-	public static void docxToKsFile(InputStream is, String filename) throws IOException {
+	public static void setLevelPrinted(int level, boolean enabled) {
+		level_printed[level] = enabled;
+	}
+
+	public static void setLevelLogged(int level, boolean enabled) {
+		level_logged[level] = enabled;
+	}
+	public static boolean isLevelPrinted(int level) {
+		return level_printed[level];
+	}
+	public static boolean isLevelLogged(int level) {
+		return level_logged[level];
+	}
+
+	public static void saveLog(String filename) {
+		try {
+			java.nio.file.Files.write(Paths.get(filename), log.toString().getBytes(StandardCharsets.UTF_8));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void docxToKsFile(InputStream is, String filename, String docName) throws IOException {
 		ZipInputStream zis = new ZipInputStream(is);
 		ByteArrayOutputStream fos = new ByteArrayOutputStream();
 		ZipEntry ze = null;
@@ -79,7 +112,7 @@ public class Utils {
 				byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
 				int len;
 				while ((len = zis.read(buffer)) != -1) {
-					fos.write(buffer, 0, len);			
+					fos.write(buffer, 0, len);
 				}
 				xmlContent =  new String(fos.toString(StandardCharsets.UTF_8));
 				fos.close();
@@ -87,22 +120,15 @@ public class Utils {
 			}
 		}
 		fos.close();
-		String txtContent = xmlContent.replaceAll("</w:p>", "\n"); 
-		txtContent = txtContent.replaceAll("<[^>]*/?>", "");
-		txtContent = txtContent.replaceAll("&amp;", "&");
-		txtContent = txtContent.replaceAll("&quot;", "\"");
-		txtContent = txtContent.replaceAll("&lt;", "<");
-		txtContent = txtContent.replaceAll("&gt;", ">");
-		// Supprime la première ligne vide de tous les fichiers :
-		txtContent = txtContent.replaceFirst("\r", "");
-		// Remplace l'espace avant la ponctuation par une espace insécable :
-		txtContent = txtContent.replaceAll("« ", "«\u00A0");
-		txtContent = txtContent.replaceAll(" »", "\u00A0»");
-		txtContent = txtContent.replaceAll(" \\?", "\u00A0?");
-		txtContent = txtContent.replaceAll(" \\!", "\u00A0!");
-		txtContent = txtContent.replaceAll("&\u00A0!", "& \\!"); //Fix
-		txtContent = txtContent.replaceAll(" :", "\u00A0:");
-		txtContent = txtContent.replaceAll(" ;", "\u00A0;");
+
+		String txtContent = TextProcess.docxToTxt(xmlContent);
+		try {
+			if (filename.endsWith(".ks"))
+				txtContent = TextProcess.fixSyntax(docName, txtContent);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		java.nio.file.Files.write(Paths.get(filename), txtContent.getBytes(StandardCharsets.UTF_8));
 	}
 }

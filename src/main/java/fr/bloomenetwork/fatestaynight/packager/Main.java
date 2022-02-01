@@ -2,12 +2,16 @@ package fr.bloomenetwork.fatestaynight.packager;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.Color;
 import java.awt.FlowLayout;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -21,13 +25,15 @@ import java.awt.event.*;
 import java.io.File;
 
 public class Main extends JFrame {
-    
+
     //Paramètres
     private String outputFolder = "package";
-    
+
     //Composants graphiques
     private JButton connectionButton;
     private JTextField tfOutputFolder;
+    private JTextField tfLogFile;
+    private JButton saveLogButton;
     private JTextArea textOutput;
     private JProgressBar progressBarFate;
     private JProgressBar progressBarUBW;
@@ -35,12 +41,26 @@ public class Main extends JFrame {
 
     //Gestion de l'API Google Drive
     private GoogleAPI googleAPI = null;
-    
+
     public Main() {
-        
+        JPanel configPane = new JPanel(new GridBagLayout());
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.fill = GridBagConstraints.NONE;
+        constraints.insets = new Insets(3,3,3,3);
+        constraints.anchor = GridBagConstraints.FIRST_LINE_START;
         //Configuration des divers éléments graphiques
-        connectionButton = new JButton("Télécharger");
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        constraints.gridwidth = 3;
+        configPane.add(new JLabel("Répertoire de sortie :"), constraints);
         tfOutputFolder = new JTextField(outputFolder, 16);
+        constraints.gridx = 3;
+        constraints.gridwidth = 3;
+        configPane.add(tfOutputFolder, constraints);
+        connectionButton = new JButton("Télécharger");
+        constraints.gridx = 6;
+        constraints.gridwidth = 1;
+        configPane.add(connectionButton, constraints);
         //ajouter le listener sur le JTextField
         tfOutputFolder.addActionListener(new ActionListener() {
             //capturer un événement sur le JTextField
@@ -52,12 +72,47 @@ public class Main extends JFrame {
                 createDirectory();
             }
         });
+        JCheckBox[] printLevels = new JCheckBox[4];
+        JCheckBox[] logLevels = new JCheckBox[4];
+        String[] levelNames = {"INFO", "DEBUG", "ERROR", "SYNTAX"};
+        constraints.gridx = 0;
+        constraints.gridy = 1;
+        constraints.gridwidth = 1;
+        configPane.add(new JLabel("Print :"), constraints);
+        constraints.gridy = 2;
+        configPane.add(new JLabel("Log :"), constraints);
+        for(int i=0; i<4; i++) {
+            printLevels[i] = new JCheckBox(levelNames[i]);
+            logLevels[i] = new JCheckBox(levelNames[i]);
+            printLevels[i].setSelected(Utils.isLevelPrinted(i));
+            logLevels[i].setSelected(Utils.isLevelLogged(i));
+            final int level = i;
+            printLevels[i].addItemListener(e -> Utils.setLevelPrinted(level, printLevels[level].isSelected()));
+            logLevels[i].addItemListener(e -> Utils.setLevelLogged(level, logLevels[level].isSelected()));
+            constraints.gridx = 1+i;
+            constraints.gridy = 1;
+            configPane.add(printLevels[i], constraints);
+            constraints.gridy = 2;
+            configPane.add(logLevels[i], constraints);
+        }
+        constraints.gridx = 5;
+        constraints.gridy = 1;
+        configPane.add(new JLabel("Journal :"), constraints);
+        tfLogFile = new JTextField("log.txt", 16);
+        constraints.gridx = 6;
+        configPane.add(tfLogFile, constraints);
+        saveLogButton = new JButton("Sauvegarder");
+        saveLogButton.addActionListener(e -> Utils.saveLog(tfLogFile.getText()));
+        constraints.gridy = 2;
+        constraints.gridx = 5;
+        constraints.gridwidth = 2;
+        configPane.add(saveLogButton, constraints);
+        
         textOutput = new JTextArea();
         textOutput.setRows(15);
         textOutput.setEditable(false);
         System.setOut(new PrintStreamCapturer(textOutput, System.out));
         System.setErr(new PrintStreamCapturer(textOutput, System.err, "[ERROR]"));
-        JPanel topPane = new JPanel(new FlowLayout(FlowLayout.LEFT));
         //Contient les barres de chargement
         JPanel progressPane = new JPanel();
         //Ajoute un espace au dessus
@@ -80,7 +135,7 @@ public class Main extends JFrame {
         progressBarHF.setStringPainted(true);
         progressBarHF.setForeground(new Color(98, 46, 98));
         progressBarHF.setBorderPainted(false);
-        
+
         //Listener sur le premier bouton qui permet d'initialiser le service de l'API Google
         connectionButton.addActionListener(e -> {
             try {
@@ -114,16 +169,12 @@ public class Main extends JFrame {
             // Crée le répertoire si celui-ci n'existe pas
             createDirectory();
         });
-        
-        //Mise en page de la fenêtre 
-        this.setTitle("Fate/Stay Night Packager - 0.8 requinDr");
+
+        //Mise en page de la fenêtre
+        this.setTitle("Fate/Stay Night Packager - 0.9");
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setSize(600, 374);
-        
-        topPane.add(new JLabel(" Répertoire de sortie : "));
-        topPane.add(tfOutputFolder);
-        topPane.add(connectionButton);
-        
+
         //Barres de chargement
         progressPane.add(new JLabel(" Fate ", JLabel.CENTER));
         progressPane.add(new JLabel(" Unlimited Blade Works ", JLabel.CENTER));
@@ -132,15 +183,15 @@ public class Main extends JFrame {
         progressPane.add(progressBarUBW, BorderLayout.CENTER);
         progressPane.add(progressBarHF, BorderLayout.CENTER);
         progressPane.setLayout(new GridLayout(2,3));
-        
+
         JScrollPane scrollPane = new JScrollPane(textOutput);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setBorder(null);
 
-        this.add(topPane, BorderLayout.NORTH);
+        this.add(configPane, BorderLayout.NORTH);
         this.add(progressPane, BorderLayout.SOUTH);
         this.add(scrollPane);
-        
+
         this.setLocationRelativeTo(null);
         this.setVisible(true);
     }
