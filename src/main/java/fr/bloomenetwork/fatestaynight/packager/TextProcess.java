@@ -75,6 +75,7 @@ public class TextProcess {
             "(?<!\\[line\\d{2}\\])"+        // ou [lineXX]
             "”"                             // avant le guillemet fermant
         }, {"mauvaise orthographe",
+            "\\b("+
             "(Sabre)|"+                     // -> Saber
             "(Bellerophon)|"+               // -> Bellérophon
             "(Ga[eé] Bolg)|"+               // -> Gáe Bolg
@@ -91,11 +92,12 @@ public class TextProcess {
             "(Ryuu?do)|"+                   // -> Ryūdō
             "(Shiro)|"+                     // -> Shirō
             "(Sou?ichiro)|"+                // -> Sōichirō
-            "(Vivian\\b)|"+                 // -> Viviane
-            "(Tōsaka)|"+                    // -> Tohsaka
-            "([ÉéEe]v[ée]nement)|"+         // -> évènement
-            "([Pp]éron)|"+                  // -> perron
-            "([Dd]inner)"                   // -> Dîner
+            "(Vivian)|"+              // -> Viviane
+            "(Tōsaka)|"+                 // -> Tohsaka
+            "([ÉéEe]v[ée]nement)|"+      // -> évènement
+            "([Pp]éron\\b)|"+            // -> perron
+            "([Dd]inner\\b)"+            // -> Dîner
+            ")"
         }, {"Inconsistance avec les règles définies",
             "(\\bQ-Qu)|"+                   // -> Qu-Qu
             "(\\b[Gg]eez\\b)|"+             // -> tss / bon sang
@@ -105,7 +107,7 @@ public class TextProcess {
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
         }, {"Minuscule au nom propre",
             "(master)|"+
-            "(\\bmage)"
+            "(\\bmages?\\b)"
         }, {"Plusieurs espaces",
             "\\S\\s\\1+\\S"
         }
@@ -184,7 +186,16 @@ public class TextProcess {
                 //comment, ignored
             }
             else if (line.startsWith("*page")) {
-                pageNumber.set(Integer.parseInt(line, "*page".length(), line.indexOf('|'), 10)+1);
+                int pipeIndex = line.indexOf('|');
+                if (pipeIndex == -1) {
+                    report.apply("marquage de page incomplet (corrigé auto.)", -1);
+                    pipeIndex = "*page".length();
+                    while (pipeIndex < line.length() && Character.isDigit(line.charAt(pipeIndex)))
+                        pipeIndex++;
+                    String after = pipeIndex < line.length() ? line.substring(pipeIndex) : "";
+                    line = line.substring(0, pipeIndex) + "|" + after;
+                }
+                pageNumber.set(Integer.parseInt(line, "*page".length(), pipeIndex, 10)+1);
                 if (talking) {
                     report.apply("dialogue non terminé à la fin de la page", -1);
                 }

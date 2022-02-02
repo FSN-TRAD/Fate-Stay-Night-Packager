@@ -13,7 +13,7 @@ import java.util.zip.ZipInputStream;
 
 public class Utils {
 
-	private static final String[] numbers = {"", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
+	private static final String[] NUMBERS_JAP = {"", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"};
 	private static final int DEFAULT_BUFFER_SIZE = 1024;
 	public static final int INFO = 0;
 	public static final int DEBUG = 1;
@@ -27,16 +27,16 @@ public class Utils {
 	//Retourne l'entier, compris entre 1 et 99, fournit en paramètre
 	//en un String écrit en japonais
 	public static String numberToJapaneseString(int number) {
-
-		String strNumber = String.format("%02d", number);
-		String dix = "十";
-
-		if(strNumber.charAt(0) == '0')
-			dix = "";
-		if(strNumber.charAt(0) == '1')
-			strNumber = "0" + strNumber.charAt(1);
-
-		return numbers[Integer.parseInt(String.valueOf(strNumber.charAt(0)))] + dix + numbers[Integer.parseInt(String.valueOf(strNumber.charAt(1)))];
+		int tens  = (number / 10) % 10,
+		    units = number % 10;
+        switch(tens) {
+            case 0 :
+                return NUMBERS_JAP[units];
+            case 1 :
+                return NUMBERS_JAP[10] + NUMBERS_JAP[units];
+            default :
+                return NUMBERS_JAP[tens] + NUMBERS_JAP[10] + NUMBERS_JAP[units];
+        }
 	}
 
 	public static void writeInputStreamToFile(InputStream inputStream, java.io.File file)
