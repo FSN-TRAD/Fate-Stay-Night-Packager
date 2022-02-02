@@ -105,7 +105,7 @@ public class TextProcess {
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
         }, {"Minuscule au nom propre",
             "(master)|"+
-            "(mage)"
+            "(\\bmage)"
         }, {"Plusieurs espaces",
             "\\S\\s\\1+\\S"
         }
