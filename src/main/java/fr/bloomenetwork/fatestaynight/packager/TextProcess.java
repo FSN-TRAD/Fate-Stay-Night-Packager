@@ -95,8 +95,6 @@ public class TextProcess {
             "(Tōsaka)|"+                    // -> Tohsaka
             "([ÉéEe]v[ée]nement)|"+         // -> évènement
             "([Pp]éron)|"+                  // -> perron
-            "(master)|"+                    // -> Master
-            "(servant)|"+                   // -> Servant
             "([Dd]inner)"                   // -> Dîner
         }, {"Inconsistance avec les règles définies",
             "(\\bQ-Qu)|"+                   // -> Qu-Qu
@@ -107,7 +105,6 @@ public class TextProcess {
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
         }, {"Minuscule au nom propre",
             "(master)|"+
-            "(servant)|"+
             "(mage)"
         }, {"Plusieurs espaces",
             "\\S\\s\\1+\\S"
