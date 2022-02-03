@@ -54,8 +54,8 @@ public class TextProcess {
     static private final Pattern apostropheRegex = Pattern.compile("(?<=[A-Za-zÀ-ÿ])(?=')(?=(?!’))(?=(?!‘)).(?=[A-Za-zÀ-ÿ]|$)");
 
     static private final Pattern missingNbspRegex = Pattern.compile(
-        "((?<=«) )"+ // espace précédé de «
-        "|( (?=»|:|;|\\?|!))"); // ou espace suivi de », :, ;, ? ou !
+        "((?<=«) )|"+ // espace précédé de «
+        "( (?=»|:|;|\\?|!))"); // ou espace suivi de », :, ;, ? ou !
 
     static private final List<ErrorDetectPattern> errorPatterns = ErrorDetectPattern.fromArray(new String[][]{
         {"problème de ponctuation",
@@ -65,12 +65,12 @@ public class TextProcess {
             "(\\[line\\d+\\]\\.)|"+         // la ligne est équivalent à un point
             "(…[?!])"                       // manque espace insécable avant '?'/'!'
         }, {"mauvais usage",
-            "(similaires?\\s*((à)|(au)))|"+ // A semblable à B / A et B sont similaires
-            "([Dd]u coup)|"+                // uniquement si conséquence immédiate
+            "([Ss]imilaires?\\s*((à)|(au)))|"+ // A semblable à B / A et B sont similaires
+            "((\\W\\s+|^)[Dd]u coup)|"+         // uniquement si conséquence immédiate
             "([Aa]u final)|"+               // uniquement pour le final d'une représentation
             "([Pp]allier\\s+((à)|(au)))"    // uniquement pour le final d'une représentation
         }, {"phrase non terminée",
-            "(?<!(\\.|“|!|\\?|…))"+         // dialogue non terminé si ne termine pas par ., (rien), !, ?, … ,
+            "(?<!(\\.|“|!|\\?|…|—))"+         // dialogue non terminé si ne termine pas par ., (rien), !, ?, … , — (cardatin)
             "(?<!\\[line\\d\\])"+           // [lineX],
             "(?<!\\[line\\d{2}\\])"+        // ou [lineXX]
             "”"                             // avant le guillemet fermant
@@ -98,7 +98,7 @@ public class TextProcess {
             "([Pp]éron\\b)|"+            // -> perron
             "([Dd]inner\\b)"+            // -> Dîner
             ")"
-        }, {"Inconsistance avec les règles définies",
+        }, {"Inconsistance avec les règles établies",
             "(\\bQ-Qu)|"+                   // -> Qu-Qu
             "(\\b[Gg]eez\\b)|"+             // -> tss / bon sang
             "(\\b[Hh]ey\\b)|"+              // -> Hé
@@ -106,8 +106,10 @@ public class TextProcess {
             "(\\b[Ss]igh*\\b)|"+            // -> Pff*
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
         }, {"Minuscule au nom propre",
-            "(master)|"+
-            "(\\bmages?\\b)"
+            "\\b("+
+            "(masters?)|"+
+            "(mages?)"+
+            ")\\b"
         }, {"Plusieurs espaces",
             "\\S\\s\\1+\\S"
         }
@@ -173,7 +175,7 @@ public class TextProcess {
                                             pageNumber.get(), msg, extract);
             if (column >= 0)
                 message += " ".repeat(column)+"*";
-            
+
             Utils.print(message, Utils.SYNTAX);
             return null;
         };
@@ -234,26 +236,45 @@ public class TextProcess {
             } else if (!line.isBlank()){
                 // remplace les espaces par des espaces insécables au niveau des ponctuations et des « »
                 line = missingNbspRegex.matcher(line).replaceAll("\u00A0");
+                Matcher straightApostropheMatcher = apostropheRegex.matcher(line);
+                while (straightApostropheMatcher.find()) {
+                    report.apply("apostrophe droite (corrigé auto.)", straightApostropheMatcher.start());
+                }
                 // remplace les apostrophes droites par des apostrophes courbes sauf si précédées ou suivies d'un espace
                 line = apostropheRegex.matcher(line).replaceAll("’");
                 // remplace "..." par "…"
-                line = line.replaceAll("\\.\\.\\.", "…");
+                int index = 0;
+                while (index < line.length() && (index = line.indexOf("..", index)) != -1) {
+                    if (line.startsWith("...", index) && !line.startsWith("....", index)) {
+                        report.apply("mauvais points de suspension (corrigé auto.)", index);
+                        line = line.substring(0, index) + "…" + line.substring(index+3);
+
+                    } else {
+                        report.apply("plusieurs points d'affilée", index);
+                        do {
+                            index+=2;
+                        } while(index < line.length() && line.charAt(index) == '.');
+                    }
+                }
+                index = 0;
                 _line.set(line);
-                
+
                 int alinea = 0;
-                
+
                 while(Character.isWhitespace(line.charAt(alinea)))
                     alinea++;
                 switch(alinea) {
                     case 0 : break;
                     case 2 :
                         if (talking) {
+                            report.apply(String.format("alinea de 2 caractères à la place de 3 (corrigé auto.)"), -1);
                             line = ' ' + line;
                             alinea = 3;
                         }
                         break;
                     case 3 :
                         if (!talking) {
+                            report.apply(String.format("alinea de 3 caractères à la place de 2 (corrigé auto.)"), -1);
                             line = line.substring(1);
                             alinea = 2;
                         }
@@ -279,8 +300,10 @@ public class TextProcess {
                     if (inBrackets) { //TODO check if preceded by \w+= and followed by \s*((\w+=)|\])
                         // quote inside brackets. Leave as is.
                     } else if (straightQuoteIndex == alinea) {
+                        report.apply("mauvais guillemets (corrigé auto.)", straightQuoteIndex);
                         line = line.substring(0, straightQuoteIndex) + "“" + line.substring(straightQuoteIndex+1);
                     } else if (line.substring(straightQuoteIndex).isBlank()) {
+                        report.apply("mauvais guillemets (corrigé auto.)", straightQuoteIndex);
                         line = line.substring(0, straightQuoteIndex) + "”" + line.substring(straightQuoteIndex+1);
                     } else {
                         report.apply("mauvais guillemets", straightQuoteIndex);
@@ -304,8 +327,10 @@ public class TextProcess {
                         else {
                             report.apply("mauvaise apostrophe", straightQuoteIndex);
                         }
-                        if(apostrophe != null)
-                            line = line.substring(0, straightQuoteIndex) + apostrophe + line.substring(straightQuoteIndex+1); 
+                        if(apostrophe != null) {
+                            report.apply("mauvaise apostrophe (corrigé auto.)", straightQuoteIndex);
+                            line = line.substring(0, straightQuoteIndex) + apostrophe + line.substring(straightQuoteIndex+1);
+                        }
                     }
                     straightQuoteIndex = line.indexOf('\'', straightQuoteIndex+1);
                 }

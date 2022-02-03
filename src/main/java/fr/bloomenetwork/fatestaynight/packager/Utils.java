@@ -128,7 +128,8 @@ public class Utils {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-		java.nio.file.Files.write(Paths.get(filename), txtContent.getBytes(StandardCharsets.UTF_8));
+		java.nio.file.Path path = Paths.get(filename);
+		java.nio.file.Files.createDirectories(path.getParent());
+		java.nio.file.Files.write(path, txtContent.getBytes(StandardCharsets.UTF_8));
 	}
 }

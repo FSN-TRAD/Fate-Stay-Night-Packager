@@ -3,6 +3,7 @@ package fr.bloomenetwork.fatestaynight.packager;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,7 @@ import javax.swing.JProgressBar;
 import com.google.api.services.drive.model.File;
 
 public class FetchingThread implements Runnable {
-	
+
 	private GoogleAPI googleAPI;
 	private static Pattern fcfPattern = Pattern.compile(".+.fcf");
 	private static Pattern dicPattern = Pattern.compile(".+.dic");
@@ -23,7 +24,7 @@ public class FetchingThread implements Runnable {
 	private static Pattern epiloguePattern = Pattern.compile("@resetvoice route=(\\w+)ep(\\d?)");
 
     //Listes du nom des routes pour le nom des fichiers
-	private static final Map<String, String> routes = new HashMap<>() {
+	private static final Map<String, String> routes = new HashMap<String, String>() {
 		{
 			put("saber" , "セイバー");
 			put("rin"   , "凛");
@@ -31,7 +32,7 @@ public class FetchingThread implements Runnable {
 			put(null    , ""); // juste au cas où
 		}
 	};
-    
+
     //Composants graphiques
     private String outputFolder;
     private JProgressBar progressBar;
@@ -43,16 +44,16 @@ public class FetchingThread implements Runnable {
 		this.progressBar = progressBar;
 		this.folderToDownload = folderToDownload;
 	}
-	
+
 	//Permet de définir le répertoire de sortie
 	public void setOutputFolder(String outputFolder) {
 		this.outputFolder = outputFolder;
 	}
-	
+
 	//Implémentation de l'interface Runnable
 	//Thread qui télécharge les scripts
 	public void run() {
-		
+
 		//Récupération du dossier racine grâce à son nom
 		String rootFolder = null;
 		try {
@@ -60,7 +61,7 @@ public class FetchingThread implements Runnable {
 		} catch (Exception e1) {
 			Utils.print(e1.toString(), Utils.ERROR);
 		}
-		
+
 		if (rootFolder != null) {
 			//On récupère les sous-dossiers, qui correspondent aux différentes routes
 			List<File> routeFolders = null;
@@ -85,34 +86,40 @@ public class FetchingThread implements Runnable {
 					Utils.print(e1.toString(), Utils.ERROR);
 				}
 			}
+			listGdocs.sort(new Comparator<File>() {
+				@Override
+				public int compare(File o1, File o2) {
+					return o1.getName().compareTo(o2.getName());
+				}
+			});
 
 			progressBar.setMaximum(listGdocs.size());
 			Utils.print(folderToDownload + " : " + listGdocs.size() + " fichiers à télécharger.");
-			
+
 			int i = 0;
-			
+
 			//Boucle qui télécharge chaque Google Doc
 			Matcher matcher;
 			for(File file : listGdocs) {
 				//Màj de la progress bar
 				i++;
 				progressBar.setValue(i);
-				
+
 				//On vérifie si c'est un fichier .fcf
 				matcher = fcfPattern.matcher(file.getName());
 				if (matcher.find()){
-					Utils.print("skip FCF file " + file.getName());
+					Utils.print("fichier FCF ignoré : " + file.getName());
 					continue;
 				}
 				//On vérifie si c'est un fichier .dic
 				matcher = dicPattern.matcher(file.getName());
 				if (matcher.find()){
-					Utils.print("skip DIC file " + file.getName());
+					Utils.print("fichier DIC ignoré : " + file.getName());
 					continue;
 				}
 
 				try {
-					
+
 					//On récupère le contenu du fichier
 					String content = googleAPI.getGdoc(file.getId());
 					//Utils.print("Évaluation du fichier " + file.getName());
@@ -120,7 +127,7 @@ public class FetchingThread implements Runnable {
 					//Utils.print("\tId : " + file.getId());
 
 					String filename = "";
-					
+
 					//On vérifie que c'est bien un fichier de script
 					//et on en extrait les informations grâce à une regex
 					if ((matcher = routePattern.matcher(content)).find()) {
@@ -134,11 +141,14 @@ public class FetchingThread implements Runnable {
 							scene = matcher.group(3);
 						} while (matcher.find());
 
+						boolean h = file.getName().contains("(H)");
+
 						//Génération du nom du fichier
-						filename = String.format("%sルート%s日目-%02d.ks",
+						filename = String.format("%s%sルート%s日目-%02d.ks",
+								h ? "h/" : "",
 								routes.get(route),
 								Utils.numberToJapaneseString(Integer.parseInt(day)),
-								Integer.parseInt(scene));
+								(h ? 100 : 0) + Integer.parseInt(scene));
 					}
 					//On vérifie que c'est un fichier du prologue
 					else if ((matcher = prologuePattern.matcher(content)).find()){
@@ -169,7 +179,7 @@ public class FetchingThread implements Runnable {
 						Utils.docxToKsFile(docxStream, outputFolder + "/" + filename, file.getName());
 						Utils.print("Fichier " + filename +" écrit  \t(" + file.getName() + ").");
 					}
-					
+
 				} catch (IOException e1) {
 					Utils.print("Erreur lors de l'écriture de " + file.getName() + ".", Utils.ERROR);
 				} catch (Exception e1) {
@@ -181,6 +191,5 @@ public class FetchingThread implements Runnable {
 			Utils.print("Le répertoire de base n'a pas été trouvé.", Utils.ERROR);
 		}
 	}
-	
-	
+
 }
