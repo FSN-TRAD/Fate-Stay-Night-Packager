@@ -20,8 +20,8 @@ public class Utils {
 	public static final int ERROR = 2;
 	public static final int SYNTAX = 3;
 
-	private static boolean[] level_printed = new boolean[]{true, true, true, true};
-	private static boolean[] level_logged = new boolean[]{false, false, false, false};
+	private static boolean[] level_printed = new boolean[]{true, true, true, false};
+	private static boolean[] level_logged = new boolean[]{false, false, true, true};
 	private static StringBuilder log = new StringBuilder();
 
 	//Retourne l'entier, compris entre 1 et 99, fournit en paramètre

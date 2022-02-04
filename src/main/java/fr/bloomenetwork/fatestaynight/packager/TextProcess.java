@@ -66,11 +66,11 @@ public class TextProcess {
             "(…[?!])"                       // manque espace insécable avant '?'/'!'
         }, {"mauvais usage",
             "([Ss]imilaires?\\s*((à)|(au)))|"+ // A semblable à B / A et B sont similaires
-            "((\\W\\s+|^)[Dd]u coup)|"+         // uniquement si conséquence immédiate
+            "((\\W\\s+|^)[Dd]u coup)|"+     // uniquement si conséquence immédiate
             "([Aa]u final)|"+               // uniquement pour le final d'une représentation
             "([Pp]allier\\s+((à)|(au)))"    // uniquement pour le final d'une représentation
         }, {"phrase non terminée",
-            "(?<!(\\.|“|!|\\?|…|—))"+         // dialogue non terminé si ne termine pas par ., (rien), !, ?, … , — (cardatin)
+            "(?<!(\\.|“|!|\\?|…|—))"+       // dialogue non terminé si ne termine pas par ., (rien), !, ?, … , — (cardatin)
             "(?<!\\[line\\d\\])"+           // [lineX],
             "(?<!\\[line\\d{2}\\])"+        // ou [lineXX]
             "”"                             // avant le guillemet fermant
@@ -92,26 +92,28 @@ public class TextProcess {
             "(Ryuu?do)|"+                   // -> Ryūdō
             "(Shiro)|"+                     // -> Shirō
             "(Sou?ichiro)|"+                // -> Sōichirō
-            "(Vivian)|"+              // -> Viviane
-            "(Tōsaka)|"+                 // -> Tohsaka
-            "([ÉéEe]v[ée]nement)|"+      // -> évènement
-            "([Pp]éron\\b)|"+            // -> perron
-            "([Dd]inner\\b)"+            // -> Dîner
+            "(Vivian)|"+                    // -> Viviane
+            "(Tōsaka)|"+                    // -> Tohsaka
+            "([ÉéEe]v[ée]nement)|"+         // -> évènement
+            "([Pp]éron\\b)|"+               // -> perron
+            "([Dd]inner\\b)"+               // -> Dîner
             ")"
-        }, {"Inconsistance avec les règles établies",
+        }, {"inconsistance avec les règles établies",
             "(\\bQ-Qu)|"+                   // -> Qu-Qu
             "(\\b[Gg]eez\\b)|"+             // -> tss / bon sang
             "(\\b[Hh]ey\\b)|"+              // -> Hé
             "(\\b[Ww]ow\\b)|"+              // -> Waouh / Ouah / Oh
             "(\\b[Ss]igh*\\b)|"+            // -> Pff*
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
-        }, {"Minuscule au nom propre",
+        }, {"minuscule au nom propre",
             "\\b("+
             "(masters?)|"+
             "(mages?)"+
             ")\\b"
-        }, {"Plusieurs espaces",
+        }, {"plusieurs espaces",
             "\\S\\s\\1+\\S"
+        }, {"erreur de script",
+            "r\\]."                         // -> [(l)r] doit être en fin de ligne
         }
     });
 
@@ -151,8 +153,11 @@ public class TextProcess {
         boolean inQuote = false;
         boolean inQuoteBeforeIf = false;
         boolean inQuoteEndofIf = false;
+        boolean needAlinea = true;
+        boolean alineaBeforeIf = true;
+        boolean alineaEndofIf = true;
         int branchState = 0; // 1 : if, 2: else
-        boolean afterBranch = false;
+        String waitTextReport = null;
 
         Iterator<String> lineIterator = text.lines().iterator();
         final FinalContainer<String> _line = new FinalContainer<>("");
@@ -198,42 +203,54 @@ public class TextProcess {
                     line = line.substring(0, pipeIndex) + "|" + after;
                 }
                 pageNumber.set(Integer.parseInt(line, "*page".length(), pipeIndex, 10)+1);
-                if (talking) {
-                    report.apply("dialogue non terminé à la fin de la page", -1);
-                }
-                if (inQuote) {
-                    report.apply("citation non terminée à la fin de la page", -1);
-                }
             }
             else if (line.startsWith("@")) {
-                if (line.startsWith("@if")) {
+                if (line.startsWith("@r")) {
+                    needAlinea = true;
+                } else if (line.startsWith("@pg")) {
+                    needAlinea = true;
+                    waitTextReport = null;
+                    if (talking)
+                        report.apply("dialogue non terminé à la fin de la page", -1);
+                    if (inQuote)
+                        report.apply("citation non terminée à la fin de la page", -1);
+                    needAlinea = true;
+                } else if (line.startsWith("@if")) {
                     talkingBeforeIf = talking;
                     inQuoteBeforeIf = inQuote;
+                    alineaBeforeIf = needAlinea;
                     branchState = 1;
-                    afterBranch = true;
                 } else if (line.startsWith("@else")) {
                     talkingEndofIf = talking;
                     inQuoteEndofIf = inQuote;
+                    alineaEndofIf = needAlinea;
                     talking = talkingBeforeIf;
                     inQuote = inQuoteBeforeIf;
+                    needAlinea = alineaBeforeIf;
                     branchState = 2;
-                    afterBranch = true;
                 } else if (line.startsWith("@endif")) {
                     if (branchState == 2) { // 'if', 'else'
                         if (talking != talkingEndofIf)
                             report.apply("problème de dialogue au niveau du if/else", -1);
                         if (inQuote != inQuoteEndofIf)
                             report.apply("problème de citation au niveau du if/else", -1);
+                        if (needAlinea != alineaEndofIf)
+                            waitTextReport = "problème de paragraphe au niveau du if/else précédent";
                     } else if (branchState == 1) { // 'if' only
                         if (talking != talkingBeforeIf)
                             report.apply("problème de dialogue au niveau du if", -1);
-                        if (inQuote != inQuoteEndofIf)
+                        if (inQuote != inQuoteBeforeIf)
                             report.apply("problème de citation au niveau du if", -1);
+                        if (needAlinea != alineaBeforeIf)
+                            waitTextReport = "problème de paragraphe au niveau du if précédent";
                     }
-                    afterBranch = true;
                 }
                 // TODO peut-être rajouter des commandes à interpréter manuellement ?
-            } else if (!line.isBlank()){
+            } else if (!line.isBlank()) {
+                if (waitTextReport != null) {
+                    report.apply(waitTextReport, -1);
+                    waitTextReport = null;
+                }
                 // remplace les espaces par des espaces insécables au niveau des ponctuations et des « »
                 line = missingNbspRegex.matcher(line).replaceAll("\u00A0");
                 Matcher straightApostropheMatcher = apostropheRegex.matcher(line);
@@ -266,21 +283,27 @@ public class TextProcess {
                 switch(alinea) {
                     case 0 : break;
                     case 2 :
-                        if (talking) {
-                            report.apply(String.format("alinea de 2 caractères à la place de 3 (corrigé auto.)"), -1);
+                        if (!needAlinea)
+                            report.apply("alinea inattendu", -1);
+                        else if (talking || inQuote) {
+                            report.apply("alinea de 2 caractères au lieu de 3 (corrigé auto.)", -1);
                             line = ' ' + line;
                             alinea = 3;
                         }
                         break;
                     case 3 :
-                        if (!talking) {
-                            report.apply(String.format("alinea de 3 caractères à la place de 2 (corrigé auto.)"), -1);
+                        if (!needAlinea)
+                            report.apply("alinea inattendu", -1);
+                        else if (!(talking || inQuote)) {
+                            report.apply("alinea de 3 caractères au lieu de 2 (corrigé auto.)", -1);
                             line = line.substring(1);
                             alinea = 2;
                         }
                         break;
                     default :
-                        if(!afterBranch)
+                        if (needAlinea)
+                            report.apply(String.format("alinea de taille %d attendu", (talking || inQuote) ? 3 : 2), -1);
+                        else if (alinea > 1)
                             report.apply(String.format("alinea de %d caractères inattendu", alinea), -1);
                         //TODO report ? could be manual indentation
                 }
@@ -396,7 +419,10 @@ public class TextProcess {
                     }
                 }
 
-                afterBranch = false;
+                if (line.endsWith("r]"))
+                    needAlinea = true;
+                else
+                    needAlinea = false;
             }
             builder.append(line).append("\n");
         }
