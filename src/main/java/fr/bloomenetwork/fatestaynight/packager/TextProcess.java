@@ -498,7 +498,7 @@ public class TextProcess {
             Utils.print(message, Utils.SYNTAX);
             return null;
         };
-
+        int msgstrLineNumber = -1;
         while (lineIterator.hasNext()) {
             String line = lineIterator.next();
             _line.set(line);
@@ -515,7 +515,11 @@ public class TextProcess {
                         Iterator<String> strLineIterator = msgstr.lines().iterator();
                         while (strLineIterator.hasNext()) {
                             String strLine = strLineIterator.next();
+                            _line.set(strLine);
+                            int tmp = lineNumber.get();
+                            lineNumber.set(msgstrLineNumber);
                             reportErrors(strLine, report);
+                            lineNumber.set(tmp);
                         }
                         // no break on purpose
                     case 0 :
@@ -530,7 +534,7 @@ public class TextProcess {
                         break;
                 }
             } else if ((quoteIndex = line.indexOf('"')) >= 0) {
-                lineText = line.substring(quoteIndex+1, line.lastIndexOf('"')).replace("\\n", "\n");
+                lineText = line.substring(quoteIndex+1, line.lastIndexOf('"')).replaceAll("\\n", "\n");
             }
             if (line.startsWith("msg")) {
                 switch(currentStep) {
@@ -556,7 +560,9 @@ public class TextProcess {
                         break;
                     case 3 :
                         if (line.startsWith("str", 3)) {
+                            msgstrLineNumber = lineNumber.get();
                             currentStep = 4;
+                            _line.set(lineText);
                             lineText = fixNbsp(lineText);
                             lineText = fixApostrophes(lineText, report);
                             lineText = fixSuspensionPoints(lineText, report);
@@ -586,12 +592,13 @@ public class TextProcess {
                     case 2: msgctxt += lineText; break;
                     case 3: msgid   += lineText; break;
                     case 4:
+                        _line.set(lineText);
                         lineText = fixNbsp(lineText);
                         lineText = fixApostrophes(lineText, report);
                         lineText = fixSuspensionPoints(lineText, report);
                         msgstr  += lineText;
                         line = line.substring(0,quoteIndex)
-                             + '"' + lineText + '"'
+                             + '"' + lineText.replaceAll("\n", "\\n") + '"'
                              + line.substring(line.lastIndexOf('"')+1);
                         break;
                 }
