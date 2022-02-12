@@ -102,7 +102,7 @@ public class Utils {
 		}
 	}
 
-	public static void docxToKsFile(InputStream is, String filename, String docName) throws IOException {
+	public static void docxToTxtFile(InputStream is, String filename, String docName) throws IOException {
 		ZipInputStream zis = new ZipInputStream(is);
 		ByteArrayOutputStream fos = new ByteArrayOutputStream();
 		ZipEntry ze = null;
@@ -124,7 +124,9 @@ public class Utils {
 		String txtContent = TextProcess.docxToTxt(xmlContent);
 		try {
 			if (filename.endsWith(".ks"))
-				txtContent = TextProcess.fixSyntax(docName, txtContent);
+				txtContent = TextProcess.fixScenarioFile(docName, txtContent);
+			else if (filename.endsWith(".po"))
+				txtContent = TextProcess.fixTranslationFile(docName, txtContent);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

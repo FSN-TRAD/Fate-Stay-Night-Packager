@@ -51,7 +51,7 @@ public class TextProcess {
     static private final Pattern rightBracketRegex = Pattern.compile("(?<!\\\\)\\]");
     static private final Pattern leftFrenchQuoteRegex = Pattern.compile("«");
     static private final Pattern rightFrenchQuoteRegex = Pattern.compile("»");
-    static private final Pattern apostropheRegex = Pattern.compile("(?<=[A-Za-zÀ-ÿ])(?=')(?=(?!’))(?=(?!‘)).(?=[A-Za-zÀ-ÿ]|$)");
+    static private final Pattern apostropheRegex = Pattern.compile("(?<=[A-Za-zÀ-ÿ])(?=')(?=(?!’))(?=(?!‘)).(?=[A-Za-zÀ-ÿŒœ])");
 
     static private final Pattern missingNbspRegex = Pattern.compile(
         "((?<=«) )|"+ // espace précédé de «
@@ -117,6 +117,132 @@ public class TextProcess {
         }
     });
 
+    private static String fixNbsp(String line) {
+        return missingNbspRegex.matcher(line).replaceAll("\u00A0");
+    }
+
+    private static String fixSuspensionPoints(String line, BiFunction<String, Integer, Void> report) {
+        // remplace "..." par "…"
+        int index = 0;
+        while (index < line.length() && (index = line.indexOf("..", index)) != -1) {
+            if (line.startsWith("...", index) && !line.startsWith("....", index)) {
+                report.apply("mauvais points de suspension (corrigé auto.)", index);
+                line = line.substring(0, index) + "…" + line.substring(index+3);
+
+            } else {
+                report.apply("plusieurs points d'affilée", index);
+                do {
+                    index += 2;
+                } while(index < line.length() && line.charAt(index) == '.');
+            }
+        }
+        return line;
+    }
+
+    private static String fixApostrophes(String line, BiFunction<String, Integer, Void> report) {
+        Matcher straightApostropheMatcher = apostropheRegex.matcher(line);
+        while (straightApostropheMatcher.find()) {
+            report.apply("apostrophe droite (corrigé auto.)", straightApostropheMatcher.start());
+        }
+        // remplace les apostrophes droites par des apostrophes courbes sauf si précédées ou suivies d'un espace
+        line = straightApostropheMatcher.replaceAll("’");
+        return line;
+    }
+
+    private static String fixAlinea(String line, int neededAlinea, BiFunction<String, Integer, Void> report) {
+        int alinea = 0;
+
+        while(Character.isWhitespace(line.charAt(alinea)))
+            alinea++;
+        
+        if (alinea != neededAlinea) {
+            switch(alinea) {
+                case 0 :
+                    report.apply(String.format("alinea de %d caractères attendu", neededAlinea), -1);
+                    break;
+                case 2 : case 3 :
+                    report.apply(String.format("alinea de %d caractères au lieu de %d (corrigé auto.)",
+                                 alinea, neededAlinea), -1);
+                    line = " ".repeat(neededAlinea) + line.substring(alinea);
+                case 1 : case 4 :
+                    if (neededAlinea == 0) {
+                        if( alinea > 1)
+                            report.apply(String.format("alinea de %d caractères inattendu", alinea), -1);
+                    }
+                    else {
+                        report.apply(String.format("alinea de %d caractère au lie de %d",
+                                     alinea, neededAlinea), -1);
+                    }
+                default : break; // ignore alineas > 4 caractères
+            }
+        }
+        return line;
+    }
+    private static String fixQuotes(String line, boolean inQuote, BiFunction<String, Integer, Void> report) {
+        int straightQuoteIndex = line.indexOf('"');
+        while(straightQuoteIndex >= 0) {
+            String before = line.substring(0, straightQuoteIndex);
+            int leftBracketsBefore = (int) leftBracketRegex.matcher(before).results().count();
+            boolean inBrackets;
+            if (leftBracketsBefore > 0) {
+                int rightBracketsBefore = (int) rightBracketRegex.matcher(before).results().count();
+                inBrackets = (leftBracketsBefore > rightBracketsBefore);
+            } else {
+                inBrackets = false;
+            }
+
+            int alinea = 0;
+            while(Character.isWhitespace(line.charAt(alinea)))
+                alinea++;
+            
+            if (inBrackets) { //TODO check if preceded by \w+= and followed by \s*((\w+=)|\])
+                // quote inside brackets. Leave as is.
+            } else if (straightQuoteIndex == alinea) {
+                report.apply("mauvais guillemets (corrigé auto.)", straightQuoteIndex);
+                line = line.substring(0, straightQuoteIndex) + "“" + line.substring(straightQuoteIndex+1);
+            } else if (line.substring(straightQuoteIndex).isBlank()) {
+                report.apply("mauvais guillemets (corrigé auto.)", straightQuoteIndex);
+                line = line.substring(0, straightQuoteIndex) + "”" + line.substring(straightQuoteIndex+1);
+            } else {
+                report.apply("mauvais guillemets", straightQuoteIndex);
+            }
+            straightQuoteIndex = line.indexOf('"', straightQuoteIndex+1);
+        }
+        straightQuoteIndex = line.indexOf('\'');
+        while(straightQuoteIndex >= 0) {
+            boolean quoteInQuote = inQuote ?
+                    line.lastIndexOf('«', straightQuoteIndex) >= line.lastIndexOf('»', straightQuoteIndex)
+                    : line.lastIndexOf('«', straightQuoteIndex) > line.lastIndexOf('»', straightQuoteIndex);
+            if (!quoteInQuote) {
+                report.apply("mauvais guillemets", straightQuoteIndex);
+            } else {
+                String apostrophe = null;
+                if (Character.isWhitespace(line.charAt(straightQuoteIndex-1))) {
+                    apostrophe = "‘";
+                } else if (Character.isWhitespace(line.charAt(straightQuoteIndex+1))) {
+                    apostrophe = "’";
+                }
+                else {
+                    report.apply("mauvaise apostrophe", straightQuoteIndex);
+                }
+                if(apostrophe != null) {
+                    report.apply("mauvaise apostrophe (corrigé auto.)", straightQuoteIndex);
+                    line = line.substring(0, straightQuoteIndex) + apostrophe + line.substring(straightQuoteIndex+1);
+                }
+            }
+            straightQuoteIndex = line.indexOf('\'', straightQuoteIndex+1);
+        }
+        return line;
+    }
+    private static void reportErrors(String line, BiFunction<String, Integer, Void> report) {
+        for(ErrorDetectPattern edp : errorPatterns) {
+            Matcher matcher = edp.matcher(line);
+            while (matcher.find()) {
+                report.apply(edp.msg, matcher.start());
+            }
+        }
+    }
+
     /**
      * Replaces all docx tags with the appropriate text equivalent.
      * Removes the first \r at the top of the file
@@ -144,7 +270,7 @@ public class TextProcess {
      * @return the fixed string
      * @throws Exception
      */
-    public static String fixSyntax(String fileName, String text) throws Exception {
+    public static String fixScenarioFile(String fileName, String text) throws Exception {
         StringBuilder builder = new StringBuilder();
 
         boolean talking = false;
@@ -159,12 +285,12 @@ public class TextProcess {
         int branchState = 0; // 1 : if, 2: else
         String waitTextReport = null;
 
-        Iterator<String> lineIterator = text.lines().iterator();
+        final Iterator<String> lineIterator = text.lines().iterator();
         final FinalContainer<String> _line = new FinalContainer<>("");
         final FinalContainer<Integer> lineNumber = new FinalContainer<>(0);
         final FinalContainer<Integer> pageNumber = new FinalContainer<>(0);
 
-        BiFunction<String, Integer, Void> report = (msg, column) -> {
+        final BiFunction<String, Integer, Void> report = (msg, column) -> {
             String extract;
             if (_line.get().length() <= 70)
                 extract = _line.get();
@@ -252,111 +378,20 @@ public class TextProcess {
                     waitTextReport = null;
                 }
                 // remplace les espaces par des espaces insécables au niveau des ponctuations et des « »
-                line = missingNbspRegex.matcher(line).replaceAll("\u00A0");
-                Matcher straightApostropheMatcher = apostropheRegex.matcher(line);
-                while (straightApostropheMatcher.find()) {
-                    report.apply("apostrophe droite (corrigé auto.)", straightApostropheMatcher.start());
-                }
+                line = fixNbsp(line);
                 // remplace les apostrophes droites par des apostrophes courbes sauf si précédées ou suivies d'un espace
-                line = apostropheRegex.matcher(line).replaceAll("’");
+                line = fixApostrophes(line, report);
                 // remplace "..." par "…"
-                int index = 0;
-                while (index < line.length() && (index = line.indexOf("..", index)) != -1) {
-                    if (line.startsWith("...", index) && !line.startsWith("....", index)) {
-                        report.apply("mauvais points de suspension (corrigé auto.)", index);
-                        line = line.substring(0, index) + "…" + line.substring(index+3);
+                line = fixSuspensionPoints(line, report);
 
-                    } else {
-                        report.apply("plusieurs points d'affilée", index);
-                        do {
-                            index+=2;
-                        } while(index < line.length() && line.charAt(index) == '.');
-                    }
-                }
-                index = 0;
                 _line.set(line);
 
-                int alinea = 0;
+                //corrige les alineas 2/3 -> 3/2, report tous les alineas anormaux
+                line = fixAlinea(line, needAlinea ? (talking || inQuote) ? 3 : 2 : 0, report);
 
-                while(Character.isWhitespace(line.charAt(alinea)))
-                    alinea++;
-                switch(alinea) {
-                    case 0 : break;
-                    case 2 :
-                        if (!needAlinea)
-                            report.apply("alinea inattendu", -1);
-                        else if (talking || inQuote) {
-                            report.apply("alinea de 2 caractères au lieu de 3 (corrigé auto.)", -1);
-                            line = ' ' + line;
-                            alinea = 3;
-                        }
-                        break;
-                    case 3 :
-                        if (!needAlinea)
-                            report.apply("alinea inattendu", -1);
-                        else if (!(talking || inQuote)) {
-                            report.apply("alinea de 3 caractères au lieu de 2 (corrigé auto.)", -1);
-                            line = line.substring(1);
-                            alinea = 2;
-                        }
-                        break;
-                    default :
-                        if (needAlinea)
-                            report.apply(String.format("alinea de taille %d attendu", (talking || inQuote) ? 3 : 2), -1);
-                        else if (alinea > 1)
-                            report.apply(String.format("alinea de %d caractères inattendu", alinea), -1);
-                        //TODO report ? could be manual indentation
-                }
                 _line.set(line);
 
-                int straightQuoteIndex = line.indexOf('"');
-                while(straightQuoteIndex >= 0) {
-                    String before = line.substring(0, straightQuoteIndex);
-                    int leftBracketsBefore = (int) leftBracketRegex.matcher(before).results().count();
-                    boolean inBrackets;
-                    if (leftBracketsBefore > 0) {
-                        int rightBracketsBefore = (int) rightBracketRegex.matcher(before).results().count();
-                        inBrackets = (leftBracketsBefore > rightBracketsBefore);
-                    } else {
-                        inBrackets = false;
-                    }
-                    if (inBrackets) { //TODO check if preceded by \w+= and followed by \s*((\w+=)|\])
-                        // quote inside brackets. Leave as is.
-                    } else if (straightQuoteIndex == alinea) {
-                        report.apply("mauvais guillemets (corrigé auto.)", straightQuoteIndex);
-                        line = line.substring(0, straightQuoteIndex) + "“" + line.substring(straightQuoteIndex+1);
-                    } else if (line.substring(straightQuoteIndex).isBlank()) {
-                        report.apply("mauvais guillemets (corrigé auto.)", straightQuoteIndex);
-                        line = line.substring(0, straightQuoteIndex) + "”" + line.substring(straightQuoteIndex+1);
-                    } else {
-                        report.apply("mauvais guillemets", straightQuoteIndex);
-                    }
-                    straightQuoteIndex = line.indexOf('"', straightQuoteIndex+1);
-                }
-                straightQuoteIndex = line.indexOf('\'');
-                while(straightQuoteIndex >= 0) {
-                    boolean quoteInQuote = inQuote ?
-                            line.lastIndexOf('«', straightQuoteIndex) >= line.lastIndexOf('»', straightQuoteIndex)
-                          : line.lastIndexOf('«', straightQuoteIndex) > line.lastIndexOf('»', straightQuoteIndex);
-                    if (!quoteInQuote) {
-                        report.apply("mauvais guillemets", straightQuoteIndex);
-                    } else {
-                        String apostrophe = null;
-                        if (Character.isWhitespace(line.charAt(straightQuoteIndex-1))) {
-                            apostrophe = "‘";
-                        } else if (Character.isWhitespace(line.charAt(straightQuoteIndex+1))) {
-                            apostrophe = "’";
-                        }
-                        else {
-                            report.apply("mauvaise apostrophe", straightQuoteIndex);
-                        }
-                        if(apostrophe != null) {
-                            report.apply("mauvaise apostrophe (corrigé auto.)", straightQuoteIndex);
-                            line = line.substring(0, straightQuoteIndex) + apostrophe + line.substring(straightQuoteIndex+1);
-                        }
-                    }
-                    straightQuoteIndex = line.indexOf('\'', straightQuoteIndex+1);
-                }
+                line = fixQuotes(line, inQuote, report);
 
                 int startDialogIndex = line.indexOf('“');
                 int endDialogIndex = line.lastIndexOf('”');
@@ -412,12 +447,7 @@ public class TextProcess {
                     }
                 }
 
-                for(ErrorDetectPattern edp : errorPatterns) {
-                    Matcher matcher = edp.matcher(line);
-                    while (matcher.find()) {
-                        report.apply(edp.msg, matcher.start());
-                    }
-                }
+                reportErrors(line, report);
 
                 if (line.endsWith("r]"))
                     needAlinea = true;
@@ -433,5 +463,141 @@ public class TextProcess {
             report.apply("citation non terminée à la fin du fichier", -1);
         }
 		return builder.toString();
+    }
+
+    public static String fixTranslationFile(String fileName, String text) {
+
+        StringBuilder builder = new StringBuilder();
+        String location = null;
+        String msgctxt = null;
+        String msgid = null;
+        String msgstr = null;
+        int currentStep = 0; // 1 : location, 2: msgctxt, 3: msgid, 4: msgstr
+        
+        final Iterator<String> lineIterator = text.lines().iterator();
+        final FinalContainer<String> _line = new FinalContainer<>("");
+        final FinalContainer<Integer> lineNumber = new FinalContainer<>(0);
+
+        final BiFunction<String, Integer, Void> report = (msg, column) -> {
+            String extract;
+            if (_line.get().length() <= 70)
+                extract = _line.get();
+            else {
+                int idxStart = Math.max(0, column-35);
+                int idxEnd = Math.min(_line.get().length(), idxStart + 70);
+                idxStart = idxEnd - 70;
+                extract = _line.get().substring(idxStart, idxEnd);
+                column = column-idxStart;
+            }
+            String message = String.format("%s:%d: %s\n%s\n",
+                                            fileName, lineNumber.get(),
+                                            msg, extract);
+            if (column >= 0)
+                message += " ".repeat(column)+"*";
+
+            Utils.print(message, Utils.SYNTAX);
+            return null;
+        };
+
+        while (lineIterator.hasNext()) {
+            String line = lineIterator.next();
+            _line.set(line);
+            lineNumber.set(lineNumber.get()+1);
+            int quoteIndex = -1;
+            String lineText = null;
+            if (line.startsWith("#:")) {
+                //previous entry not finished => report error
+                switch(currentStep) {
+                    case 2 : case 3 :
+                        report.apply("entrée non terminée", -1);
+                        // report error : unfinished entry
+                    case 4 : // check previous entry ?
+                        Iterator<String> strLineIterator = msgstr.lines().iterator();
+                        while (strLineIterator.hasNext()) {
+                            String strLine = strLineIterator.next();
+                            reportErrors(strLine, report);
+                        }
+                        // no break on purpose
+                    case 0 :
+                        location = line;
+                        msgctxt = null;
+                        msgid = null;
+                        msgstr = null;
+                        currentStep = 1;
+                        break;
+                    case 1 :
+                        location += line.substring(2); // skip "#:"
+                        break;
+                }
+            } else if ((quoteIndex = line.indexOf('"')) >= 0) {
+                lineText = line.substring(quoteIndex+1, line.lastIndexOf('"')).replace("\\n", "\n");
+            }
+            if (line.startsWith("msg")) {
+                switch(currentStep) {
+                    case 0 : break;
+                    case 1 :
+                        if (line.startsWith("ctxt", 3)) {
+                            currentStep = 2;
+                            msgctxt = lineText;
+                        } else if (line.startsWith("id", 3)) {
+                            currentStep = 3;
+                            msgid = lineText;
+                        }
+                        else
+                            report.apply("la ligne devrait commencer par '#:', 'msgctxt' ou 'msgid'", -1);
+                        break;
+                    case 2 :
+                        if (line.startsWith("id", 3)) {
+                            currentStep = 3;
+                            msgid = lineText;
+                        }
+                        else
+                            report.apply("la ligne devrait être un texte ou commencer par 'msgid'", -1);
+                        break;
+                    case 3 :
+                        if (line.startsWith("str", 3)) {
+                            currentStep = 4;
+                            lineText = fixNbsp(lineText);
+                            lineText = fixApostrophes(lineText, report);
+                            lineText = fixSuspensionPoints(lineText, report);
+                            msgstr = lineText;
+                            line = line.substring(0,quoteIndex)
+                                 + '"' + lineText + '"'
+                                 + line.substring(line.lastIndexOf('"')+1);
+                        }
+                        else if (line.startsWith("id_plural", 3)) {
+                            // plurals not yet handled
+                        }
+                        else
+                            report.apply("la ligne devrait être un texte ou commencer par 'msgstr'", -1);
+                        break;
+                    case 4 :
+                        if (line.startsWith("str_plural", 3)) {
+                            // plurals not yet handled
+                        }
+                        report.apply("entrée actuelle non terminée", -1);
+                        break;
+                }
+            }
+            else if (quoteIndex >= 0) {
+                switch(currentStep) {
+                    case 0: break;
+                    case 1: report.apply("guillemet inattendu pour une position dans un fichier", quoteIndex);
+                    case 2: msgctxt += lineText; break;
+                    case 3: msgid   += lineText; break;
+                    case 4:
+                        lineText = fixNbsp(lineText);
+                        lineText = fixApostrophes(lineText, report);
+                        lineText = fixSuspensionPoints(lineText, report);
+                        msgstr  += lineText;
+                        line = line.substring(0,quoteIndex)
+                             + '"' + lineText + '"'
+                             + line.substring(line.lastIndexOf('"')+1);
+                        break;
+                }
+            }
+            builder.append(line+"\n");
+        }
+        return builder.toString().trim();
     }
 }

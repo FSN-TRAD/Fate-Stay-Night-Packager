@@ -17,8 +17,10 @@ import com.google.api.services.drive.model.File;
 public class FetchingThread implements Runnable {
 
 	private GoogleAPI googleAPI;
-	private static Pattern fcfPattern = Pattern.compile(".+.fcf");
-	private static Pattern dicPattern = Pattern.compile(".+.dic");
+	private static Pattern fcfPattern = Pattern.compile(".+\\.fcf");
+	private static Pattern dicPattern = Pattern.compile(".+\\.dic");
+	private static Pattern poPattern = Pattern.compile("msgid \"");
+	private static Pattern scenarioPattern = Pattern.compile("@resetvoice ");
 	private static Pattern routePattern = Pattern.compile("@resetvoice route=(\\w+) day=(\\d+) scene=(\\d+)");
 	private static Pattern prologuePattern = Pattern.compile("@resetvoice route=prologue day=(\\d+)");
 	private static Pattern epiloguePattern = Pattern.compile("@resetvoice route=(\\w+)ep(\\d?)");
@@ -79,6 +81,7 @@ public class FetchingThread implements Runnable {
 			for(File routeFolder : routeFolders) {
 				try {
 					List<File> dayFolders = googleAPI.getSubFiles(routeFolder.getId(), " and mimeType = 'application/vnd.google-apps.folder'");
+					listGdocs.addAll(googleAPI.getSubFiles(routeFolder.getId(), " and mimeType = 'application/vnd.google-apps.document'"));
 					for(File dayFolder : dayFolders) {
 						listGdocs.addAll(googleAPI.getSubFiles(dayFolder.getId(), " and mimeType = 'application/vnd.google-apps.document'"));
 					}
@@ -105,6 +108,8 @@ public class FetchingThread implements Runnable {
 				i++;
 				progressBar.setValue(i);
 
+				String content, filename = "";
+
 				//On vérifie si c'est un fichier .fcf
 				matcher = fcfPattern.matcher(file.getName());
 				if (matcher.find()){
@@ -117,69 +122,59 @@ public class FetchingThread implements Runnable {
 					Utils.print("fichier DIC ignoré : " + file.getName());
 					continue;
 				}
-
 				try {
+					content = googleAPI.getGdoc(file.getId());
 
-					//On récupère le contenu du fichier
-					String content = googleAPI.getGdoc(file.getId());
-					//Utils.print("Évaluation du fichier " + file.getName());
-					//debug :
-					//Utils.print("\tId : " + file.getId());
-
-					String filename = "";
-
-					//On vérifie que c'est bien un fichier de script
-					//et on en extrait les informations grâce à une regex
-					if ((matcher = routePattern.matcher(content)).find()) {
-						String route, day, scene;
-						//Un peu fragile ici
-						//La boucle n'est censée faire qu'un tour
-						//Il ne faut pas qu'il y ait de conflit dans la regex
-						do {
+					if ((matcher = scenarioPattern.matcher(content)).find()) {
+						int index = matcher.start();
+						if ((matcher = routePattern.matcher(content.substring(index))).find()) {
+							String route, day, scene;
 							route = matcher.group(1);
 							day   = matcher.group(2);
 							scene = matcher.group(3);
-						} while (matcher.find());
-
-						boolean h = file.getName().contains("(H)");
-
-						//Génération du nom du fichier
-						filename = String.format("%s%sルート%s日目-%02d.ks",
-								h ? "h/" : "",
-								routes.get(route),
-								Utils.numberToJapaneseString(Integer.parseInt(day)),
-								(h ? 100 : 0) + Integer.parseInt(scene));
-					}
-					//On vérifie que c'est un fichier du prologue
-					else if ((matcher = prologuePattern.matcher(content)).find()){
-						String day;
-						do {
+	
+							boolean h = file.getName().contains("(H)");
+	
+							//Génération du nom du fichier
+							filename = String.format("%s%sルート%s日目-%02d.ks",
+									h ? "h/" : "",
+									routes.get(route),
+									Utils.numberToJapaneseString(Integer.parseInt(day)),
+									(h ? 100 : 0) + Integer.parseInt(scene));
+						}
+						// fichier de scnério du prologue
+						else if ((matcher = prologuePattern.matcher(content)).find()){
+							String day;
 							day = matcher.group(1);
-						} while (matcher.find());
-						filename = String.format("プロローグ%s日目.ks", day);
-					}
-					//On vérifie que c'est un fichier de l'épilogue
-					else if ((matcher = epiloguePattern.matcher(content)).find()){
-						String route, ep;
-						do {
+
+							filename = String.format("プロローグ%s日目.ks", day);
+						}
+						// fichier de scnério de l'épilogue
+						else if ((matcher = epiloguePattern.matcher(content)).find()){
+							String route, ep;
 							route = matcher.group(1);
 							ep = matcher.group(2);
-						} while (matcher.find());
-						filename = String.format("%sエピローグ%s.ks", routes.get(route), ep);
+
+							filename = String.format("%sエピローグ%s.ks", routes.get(route), ep);
+						}
+						else {
+							Utils.print("Fichier scénario " + file.getName() + " non supporté.", Utils.ERROR);
+						}
+					} else if ((matcher = poPattern.matcher(content)).find()) {
+						filename = file.getName() + ".po";
 					}
 					else {
 						Utils.print("Fichier " + file.getName() + " non supporté.", Utils.ERROR);
 					}
 
-					if(!filename.equals("")) {
+					if (!filename.equals("")) {
 						//On écrit le docx
 						//Utils.print("\tTéléchargement du fichier docx et conversion.");
 						InputStream docxStream = googleAPI.getDocx(file.getId());
 						//On convertit et enfin on écrit le fichier
-						Utils.docxToKsFile(docxStream, outputFolder + "/" + filename, file.getName());
+						Utils.docxToTxtFile(docxStream, outputFolder + "/" + filename, file.getName());
 						Utils.print("Fichier " + filename +" écrit  \t(" + file.getName() + ").");
 					}
-
 				} catch (IOException e1) {
 					Utils.print("Erreur lors de l'écriture de " + file.getName() + ".", Utils.ERROR);
 				} catch (Exception e1) {
