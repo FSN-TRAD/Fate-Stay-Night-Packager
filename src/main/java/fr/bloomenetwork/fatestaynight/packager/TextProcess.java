@@ -170,7 +170,7 @@ public class TextProcess {
                             report.apply(String.format("alinea de %d caractères inattendu", alinea), -1);
                     }
                     else {
-                        report.apply(String.format("alinea de %d caractère au lie de %d",
+                        report.apply(String.format("alinea de %d caractère au lieu de %d",
                                      alinea, neededAlinea), -1);
                     }
                 default : break; // ignore alineas > 4 caractères
