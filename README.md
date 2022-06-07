@@ -1,6 +1,7 @@
 # Fate/Stay Night [Réalta Nua] Packager
 
-Permet de générer les fichiers de scripts KiriKiri pour le jeu Fate/Stay Night à partir de documents Google Docs stockés sur Google Drive.
+Permet de générer les fichiers de scripts KiriKiri pour le jeu Fate/Stay Night à partir de documents Google Docs stockés sur Google Drive.  
+Les espaces insécables sont ajoutés automatiquement et un traitement permet de mettre en évidence de potentielles coquilles.
 
 ## Compilation
 
