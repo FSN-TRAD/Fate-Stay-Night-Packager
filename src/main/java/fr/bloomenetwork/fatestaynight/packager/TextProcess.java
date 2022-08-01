@@ -96,7 +96,8 @@ public class TextProcess {
             "(Tōsaka)|"+                    // -> Tohsaka
             "([ÉéEe]v[ée]nement)|"+         // -> évènement
             "([Pp]éron\\b)|"+               // -> perron
-            "([Dd]inner\\b)"+               // -> Dîner
+            "([Dd]inner\\b)|"+              // -> Dîner
+            "([Ss]ceaux?\\s[Mm]agiques?)"+   // -> Blason Magique
             ")"
         }, {"inconsistance avec les règles établies",
             "(\\bQ-Qu)|"+                   // -> Qu-Qu
@@ -158,21 +159,21 @@ public class TextProcess {
         if (alinea != neededAlinea) {
             switch(alinea) {
                 case 0 :
-                    report.apply(String.format("alinea de %d caractères attendu", neededAlinea), -1);
+                    //report.apply(String.format("alinea de %d caractères attendu", neededAlinea), -1);
                     break;
                 case 2 : case 3 :
-                    report.apply(String.format("alinea de %d caractères au lieu de %d (corrigé auto.)",
-                                 alinea, neededAlinea), -1);
+                    //report.apply(String.format("alinea de %d caractères au lieu de %d (corrigé auto.)",
+                    //             alinea, neededAlinea), -1);
                     line = " ".repeat(neededAlinea) + line.substring(alinea);
                 case 1 : case 4 :
-                    if (neededAlinea == 0) {
-                        if( alinea > 1)
-                            report.apply(String.format("alinea de %d caractères inattendu", alinea), -1);
-                    }
-                    else {
-                        report.apply(String.format("alinea de %d caractère au lieu de %d",
-                                     alinea, neededAlinea), -1);
-                    }
+                    //if (neededAlinea == 0) {
+                    //    if( alinea > 1)
+                    //        report.apply(String.format("alinea de %d caractères inattendu", alinea), -1);
+                    //}
+                    //else {
+                    //    report.apply(String.format("alinea de %d caractère au lieu de %d",
+                    //                 alinea, neededAlinea), -1);
+                    //}
                 default : break; // ignore alineas > 4 caractères
             }
         }
