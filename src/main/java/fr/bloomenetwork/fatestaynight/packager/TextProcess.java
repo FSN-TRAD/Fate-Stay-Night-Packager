@@ -46,7 +46,7 @@ class ErrorDetectPattern {
 
 public class TextProcess {
 
-    //static private final Pattern talkerRegex = Pattern.compile("@say storage=[^\\W_]+_([^\\W_]+)_\\d+");
+    static private final Pattern talkerRegex = Pattern.compile("[a-z\\d]+_[a-z\\d]+(_[0-9a-z]+)+");
     static private final Pattern leftBracketRegex = Pattern.compile("(?<!\\\\)\\[");
     static private final Pattern rightBracketRegex = Pattern.compile("(?<!\\\\)\\]");
     static private final Pattern leftFrenchQuoteRegex = Pattern.compile("«");
@@ -63,9 +63,9 @@ public class TextProcess {
             "(\\.\\s*…)|(…\\s*\\.)|"+       // doit être remplacé soit par '.', soit par '…'
             "(…\\w)|"+                      // Il doit y avoir un espace après '…' avant une lettre
             "(\\[line\\d+\\]\\.)|"+         // la ligne est équivalent à un point
-            "(…[?!])"                       // manque espace insécable avant '?'/'!'
+            "([^“\\u00A0\\]?!][?!;:](?!\\=))"     // manque espace insécable avant '?'/'!'/';'/':'
         }, {"mauvais usage",
-            "([Ss]imilaires?\\s*((à)|(au)))|"+ // A semblable à B / A et B sont similaires
+            "([Ss]imilaires?\\s*((à)|(aux?))\\b)|"+ // A semblable à B / A et B sont similaires
             "((\\W\\s+|^)[Dd]u coup)|"+     // uniquement si conséquence immédiate
             "([Aa]u final)|"+               // uniquement pour le final d'une représentation
             "([Pp]allier\\s+((à)|(au)))"    // uniquement pour le final d'une représentation
@@ -114,7 +114,7 @@ public class TextProcess {
         }, {"plusieurs espaces",
             "\\S\\s\\1+\\S"
         }, {"erreur de script",
-            "r\\]."                         // -> [(l)r] doit être en fin de ligne
+            "r\\][^\\[]"                         // -> [(l)r] doit être en fin de ligne
         }
     });
 
@@ -179,18 +179,37 @@ public class TextProcess {
         }
         return line;
     }
+
+    private static int countOccurrences(String text, String token) {
+        int occurrences = 0;
+        int index = -1;
+        while ((index = text.indexOf(token, index+1))>= 0 ) {
+            occurrences++;
+        }
+        return occurrences;
+    }
+
+    private static boolean isInBlock(String line, int index, String startStr, String endStr) {
+        String before = line.substring(0, index);
+        int startsBefore = countOccurrences(before, startStr);
+        boolean inBlock;
+
+        if (startStr.equals(endStr)) {
+            inBlock = (startsBefore % 2) == 1;
+        }
+        else if (startsBefore > 0) {
+            int endsBefore = countOccurrences(before, endStr);
+            inBlock = (startsBefore > endsBefore);
+        } else {
+            inBlock = false;
+        }
+        return inBlock;
+    }
+
     private static String fixQuotes(String line, boolean inQuote, BiFunction<String, Integer, Void> report) {
         int straightQuoteIndex = line.indexOf('"');
         while(straightQuoteIndex >= 0) {
-            String before = line.substring(0, straightQuoteIndex);
-            int leftBracketsBefore = (int) leftBracketRegex.matcher(before).results().count();
-            boolean inBrackets;
-            if (leftBracketsBefore > 0) {
-                int rightBracketsBefore = (int) rightBracketRegex.matcher(before).results().count();
-                inBrackets = (leftBracketsBefore > rightBracketsBefore);
-            } else {
-                inBrackets = false;
-            }
+            boolean inBrackets = isInBlock(line, straightQuoteIndex, "[", "]");
 
             int alinea = 0;
             while(Character.isWhitespace(line.charAt(alinea)))
@@ -211,30 +230,38 @@ public class TextProcess {
         }
         straightQuoteIndex = line.indexOf('\'');
         while(straightQuoteIndex >= 0) {
-            boolean quoteInQuote = inQuote ?
-                    line.lastIndexOf('«', straightQuoteIndex) >= line.lastIndexOf('»', straightQuoteIndex)
-                    : line.lastIndexOf('«', straightQuoteIndex) > line.lastIndexOf('»', straightQuoteIndex);
-            if (!quoteInQuote) {
-                report.apply("mauvais guillemets", straightQuoteIndex);
+            boolean inBrackets = isInBlock(line, straightQuoteIndex, "[", "]");
+            if (inBrackets) {
+                boolean inStraightQuotes = isInBlock(line, straightQuoteIndex, "\"", "\"");
+                if (inStraightQuotes)
+                    report.apply("mauvais guillemets", straightQuoteIndex);
             } else {
-                String apostrophe = null;
-                if (Character.isWhitespace(line.charAt(straightQuoteIndex-1))) {
-                    apostrophe = "‘";
-                } else if (Character.isWhitespace(line.charAt(straightQuoteIndex+1))) {
-                    apostrophe = "’";
-                }
-                else {
-                    report.apply("mauvaise apostrophe", straightQuoteIndex);
-                }
-                if(apostrophe != null) {
-                    report.apply("mauvaise apostrophe (corrigé auto.)", straightQuoteIndex);
-                    line = line.substring(0, straightQuoteIndex) + apostrophe + line.substring(straightQuoteIndex+1);
+                boolean quoteInQuote = inQuote ?
+                        line.lastIndexOf('«', straightQuoteIndex) >= line.lastIndexOf('»', straightQuoteIndex)
+                        : line.lastIndexOf('«', straightQuoteIndex) > line.lastIndexOf('»', straightQuoteIndex);
+                if (!quoteInQuote) {
+                    report.apply("mauvais guillemets", straightQuoteIndex);
+                } else {
+                    String apostrophe = null;
+                    if (Character.isWhitespace(line.charAt(straightQuoteIndex-1))) {
+                        apostrophe = "‘";
+                    } else if (Character.isWhitespace(line.charAt(straightQuoteIndex+1))) {
+                        apostrophe = "’";
+                    }
+                    else {
+                        report.apply("mauvaise apostrophe", straightQuoteIndex);
+                    }
+                    if(apostrophe != null) {
+                        report.apply("mauvaise apostrophe (corrigé auto.)", straightQuoteIndex);
+                        line = line.substring(0, straightQuoteIndex) + apostrophe + line.substring(straightQuoteIndex+1);
+                    }
                 }
             }
             straightQuoteIndex = line.indexOf('\'', straightQuoteIndex+1);
         }
         return line;
     }
+
     private static void reportErrors(String line, BiFunction<String, Integer, Void> report) {
         for(ErrorDetectPattern edp : errorPatterns) {
             Matcher matcher = edp.matcher(line);
@@ -242,22 +269,6 @@ public class TextProcess {
                 report.apply(edp.msg, matcher.start());
             }
         }
-    }
-
-    /**
-     * Replaces all docx tags with the appropriate text equivalent.
-     * Removes the first \r at the top of the file
-     * @param content - the input string to convert
-     * @return the converted string
-     */
-    public static String docxToTxt(String content) {
-		return content.replaceAll("</w:p>", "\n")
-                      .replaceAll("<[^>]*/?>", "")
-                      .replaceAll("&amp;", "&")
-                      .replaceAll("&quot;", "\"")
-                      .replaceAll("&lt;", "<")
-                      .replaceAll("&gt;", ">")
-                      .replaceFirst("\r", "");
     }
 
     /**
@@ -290,7 +301,7 @@ public class TextProcess {
         final FinalContainer<String> _line = new FinalContainer<>("");
         final FinalContainer<Integer> lineNumber = new FinalContainer<>(0);
         final FinalContainer<Integer> pageNumber = new FinalContainer<>(0);
-
+        //Utils.print("Processing " + fileName, Utils.DEBUG);
         final BiFunction<String, Integer, Void> report = (msg, column) -> {
             String extract;
             if (_line.get().length() <= 70)
@@ -332,7 +343,10 @@ public class TextProcess {
                 pageNumber.set(Integer.parseInt(line, "*page".length(), pipeIndex, 10)+1);
             }
             else if (line.startsWith("@")) {
-                if (line.startsWith("@r")) {
+                if (Character.isWhitespace(line.charAt(line.length()-1))) {
+                    report.apply("espace en fin de @cmd", -1);
+                }
+                if (line.startsWith("@r") || line.startsWith("@lr")) {
                     needAlinea = true;
                 } else if (line.startsWith("@pg")) {
                     needAlinea = true;
@@ -342,7 +356,22 @@ public class TextProcess {
                     if (inQuote)
                         report.apply("citation non terminée à la fin de la page", -1);
                     needAlinea = true;
-                } else if (line.startsWith("@if")) {
+                } else if (line.startsWith("@say")) {
+                    //@say storage=[^\\W_]+_([^\\W_]+)_\\d+");
+                    int fileIndex = line.indexOf("storage=")+"storage=".length();
+                    if (fileIndex == 0)
+                        report.apply("@say sans \"storage=\"", -1);
+                    else {
+                        int fileEndIdx = line.indexOf(' ', fileIndex);
+                        if (fileEndIdx == -1)
+                            fileEndIdx = line.length();
+                        String file = line.substring(fileIndex, fileEndIdx);
+                        if (!talkerRegex.matcher(file).matches()) {
+                            report.apply("identifiant de @say non conforme", -1);
+                        }
+                    }
+                }
+                else if (line.startsWith("@if")) {
                     talkingBeforeIf = talking;
                     inQuoteBeforeIf = inQuote;
                     alineaBeforeIf = needAlinea;

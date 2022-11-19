@@ -54,24 +54,28 @@ public class Utils {
 	}
 	public static void print(String message, int level) {
 		if(level_logged[level] || level_printed[level]) {
-			String output = "[" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")) + "]";
+			String output;
 			switch(level) {
 			case INFO:
-				output += "[INFO]";
+				output = "[INFO]";
 				break;
 			case DEBUG:
-				output += "[DEBUG]";
+				output = "[DEBUG]";
 				break;
 			case ERROR:
-				output += "[ERROR]";
+				output = "[ERROR]";
 				break;
 			case SYNTAX:
-				output += "[SYNTAX]";
+				output = "[SYNTAX]";
 				break;
+			default:
+				output = "";
 			}
 			output += message;
-			if(level_printed[level])
-				System.out.println(output);
+			if(level_printed[level]) {
+				String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+				System.out.println("[" + date + "]" + output);
+			}
 			if (level_logged[level])
 				log.append(output).append("\n");
 		}
@@ -102,7 +106,39 @@ public class Utils {
 		}
 	}
 
-	public static void docxToTxtFile(InputStream is, String filename, String docName) throws IOException {
+	public static void processKs(String fileName, String docName, String content) throws IOException {
+		try {
+			if (fileName.endsWith(".ks"))
+				content = TextProcess.fixScenarioFile(docName, content);
+			else if (fileName.endsWith(".po"))
+				content = TextProcess.fixTranslationFile(docName, content);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		java.nio.file.Path path = Paths.get(fileName);
+		java.nio.file.Files.createDirectories(path.getParent());
+		java.nio.file.Files.write(path, content.getBytes(StandardCharsets.UTF_8));
+	}
+	
+
+    /**
+     * Replaces all docx tags with the appropriate text equivalent.
+     * Removes the first \r at the top of the file
+     * @param content - the input string to convert
+     * @return the converted string
+     */
+    public static String docxToTxt(String content) {
+		return content.replaceAll("</w:p>", "\n")
+                      .replaceAll("<w:br[^>]*>", "\n")
+                      .replaceAll("<[^>]*/?>", "")
+                      .replaceAll("&amp;", "&")
+                      .replaceAll("&quot;", "\"")
+                      .replaceAll("&lt;", "<")
+                      .replaceAll("&gt;", ">")
+                      .replaceFirst("\r", "");
+    }
+
+	public static String docxToTxt(InputStream is) throws IOException {
 		ZipInputStream zis = new ZipInputStream(is);
 		ByteArrayOutputStream fos = new ByteArrayOutputStream();
 		ZipEntry ze = null;
@@ -121,17 +157,6 @@ public class Utils {
 		}
 		fos.close();
 
-		String txtContent = TextProcess.docxToTxt(xmlContent);
-		try {
-			if (filename.endsWith(".ks"))
-				txtContent = TextProcess.fixScenarioFile(docName, txtContent);
-			else if (filename.endsWith(".po"))
-				txtContent = TextProcess.fixTranslationFile(docName, txtContent);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		java.nio.file.Path path = Paths.get(filename);
-		java.nio.file.Files.createDirectories(path.getParent());
-		java.nio.file.Files.write(path, txtContent.getBytes(StandardCharsets.UTF_8));
+		return docxToTxt(xmlContent);
 	}
 }

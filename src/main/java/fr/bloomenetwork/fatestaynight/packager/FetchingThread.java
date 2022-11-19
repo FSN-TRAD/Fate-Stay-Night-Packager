@@ -123,8 +123,12 @@ public class FetchingThread implements Runnable {
 					continue;
 				}
 				try {
+					/*
 					content = googleAPI.getGdoc(file.getId());
-
+					/*/
+					InputStream docxStream = googleAPI.getDocx(file.getId());
+					content = Utils.docxToTxt(docxStream);
+					//*/
 					if ((matcher = scenarioPattern.matcher(content)).find()) {
 						int index = matcher.start();
 						if ((matcher = routePattern.matcher(content.substring(index))).find()) {
@@ -170,13 +174,11 @@ public class FetchingThread implements Runnable {
 					if (!filename.equals("")) {
 						//On écrit le docx
 						//Utils.print("\tTéléchargement du fichier docx et conversion.");
-						InputStream docxStream = googleAPI.getDocx(file.getId());
-						//On convertit et enfin on écrit le fichier
-						Utils.docxToTxtFile(docxStream, outputFolder + "/" + filename, file.getName());
+						Utils.processKs(outputFolder + "/" + filename, file.getName(), content);
 						Utils.print("Fichier " + filename +" écrit  \t(" + file.getName() + ").");
 					}
 				} catch (IOException e1) {
-					Utils.print("Erreur lors de l'écriture de " + file.getName() + ".", Utils.ERROR);
+					Utils.print("Erreur lors de l'écriture de " + filename + "(" + file.getName() + ").", Utils.ERROR);
 				} catch (Exception e1) {
 					Utils.print("Fichier " + file.getName() + " invalide.", Utils.ERROR);
 				}
