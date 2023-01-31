@@ -151,23 +151,30 @@ public class Main extends JFrame {
             FetchingThread ftFate = new FetchingThread(googleAPI, progressBarFate, "Fate");
             FetchingThread ftUBW = new FetchingThread(googleAPI, progressBarUBW, "Unlimited Blade Works");
             FetchingThread ftHF = new FetchingThread(googleAPI, progressBarHF, "Heavens Feel");
-            FetchingThread ftStatuts = new FetchingThread(googleAPI, progressBarHF, "Statuts");
+            //FetchingThread ftStatuts = new FetchingThread(googleAPI, progressBarHF, "Statuts");
+            FetchingThread ftAdditional = new FetchingThread(googleAPI, progressBarHF, "Scripts supplémentaires");
+
+            tfOutputFolder.setEditable(false);
+            // Crée le répertoire si celui-ci n'existe pas
+            createDirectory();
 
             ftFate.setOutputFolder(tfOutputFolder.getText());
             ftUBW.setOutputFolder(tfOutputFolder.getText());
             ftHF.setOutputFolder(tfOutputFolder.getText());
-            ftStatuts.setOutputFolder(tfOutputFolder.getText());
-            tfOutputFolder.setEditable(false);
+            //ftStatuts.setOutputFolder(tfOutputFolder.getText());
+            ftAdditional.setOutputFolder(tfOutputFolder.getText());
+
             Thread tFate = new Thread(ftFate);
-            tFate.start();
             Thread tUBW = new Thread(ftUBW);
-            tUBW.start();
             Thread tHF = new Thread(ftHF);
+            //Thread tStatuts = new Thread(ftStatuts);
+            Thread tAdditional = new Thread(ftAdditional);
+
+            tFate.start();
+            tUBW.start();
             tHF.start();
-            Thread tStatuts = new Thread(ftStatuts);
-            tStatuts.start();
-            // Crée le répertoire si celui-ci n'existe pas
-            createDirectory();
+            //tStatuts.start();
+            tAdditional.start();
         });
 
         //Mise en page de la fenêtre
