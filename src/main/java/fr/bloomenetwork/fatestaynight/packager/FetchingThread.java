@@ -25,7 +25,7 @@ public class FetchingThread implements Runnable {
 	private static Pattern poPattern = Pattern.compile("msgid \"");
 	private static Pattern routePattern = Pattern.compile("@resetvoice route=(\\w+)( day=(\\d+))?( scene=(\\d+))?");
 	private static Pattern epiloguePattern = Pattern.compile("(\\w+)ep(\\d?)");
-	private static Pattern demoPattern = Pattern.compile("D[eé]mo\\s?-\\s?(\\d+)");
+	private static Pattern demoPattern = Pattern.compile("D[eé]mo\\s?-\\s?(\\w+)");
 
     //Listes du nom des routes pour le nom des fichiers
 	private static final Map<String, String> routes = new HashMap<String, String>() {
@@ -133,22 +133,19 @@ public class FetchingThread implements Runnable {
 				content = Utils.docxToTxt(docxStream);
 				if (content.contains("*page0|")) {
 					// fichiers de scénario de la démo
-					if (file.getName().startsWith("Demo")) {
-						if ((matcher = demoPattern.matcher(file.getName())).find(0)) {
-							String demo_num = matcher.group(1);
-							switch(demo_num)
-							{
-							case "1" : case "2" : case "3" :
-								filename = String.format("体験版プロローグ%s日目.ks", demo_num);
-								break;
-							case "Video" :
-								filename = "体験版ダイジェスト仮組04.ks";
-								break;
-							default :
-								Utils.print("Fichier " + file.getName() + " non supporté.", Utils.ERROR);
-							}
-														
-						}
+					if ((matcher = demoPattern.matcher(file.getName())).find(0)) {
+						String demo_num = matcher.group(1);
+						switch(demo_num)
+						{
+						case "1" : case "2" : case "3" :
+							filename = String.format("体験版プロローグ%s日目.ks", demo_num);
+							break;
+						case "Video" :
+							filename = "体験版ダイジェスト仮組04.ks";
+							break;
+						default :
+							Utils.print("Fichier " + file.getName() + " non supporté.", Utils.ERROR);
+						}						
 					}
 					//autres fichiers scenario
 					else if ((matcher = routePattern.matcher(content)).find()) {
