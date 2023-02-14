@@ -68,7 +68,7 @@ public class TextProcess {
             "([Ss]imilaires?\\s*((à)|(aux?))\\b)|"+ // A semblable à B / A et B sont similaires
             "((\\W\\s+|^)[Dd]u coup)|"+     // uniquement si conséquence immédiate
             "([Aa]u final)|"+               // uniquement pour le final d'une représentation
-            "([Pp]allier\\s+((à)|(au)))"    // uniquement pour le final d'une représentation
+            "([Pp]allier\\s+((à)|(au)))"    // pallier
         }, {"phrase non terminée",
             "(?<!(\\.|“|!|\\?|…|—))"+       // dialogue non terminé si ne termine pas par ., (rien), !, ?, … , — (cardatin)
             "(?<!\\[line\\d\\])"+           // [lineX],
@@ -103,14 +103,17 @@ public class TextProcess {
             "(\\bQ-Qu)|"+                   // -> Qu-Qu
             "(\\b[Gg]eez\\b)|"+             // -> tss / bon sang
             "(\\b[Hh]ey\\b)|"+              // -> Hé
-            "(\\b[Ww]ow\\b)|"+              // -> Waouh / Ouah / Oh
             "(\\b[Ss]igh*\\b)|"+            // -> Pff*
+            "([Hh][ée]ro de [Jj]ustice)|"+  // -> Défenseur de la Justice
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
         }, {"minuscule au nom propre",
             "\\b("+
-            "(masters?)|"+
-            "(mages?)"+
+            "(masters?)"+
+            "(servants?)"+
+            "(défenseur de la justice)|"+  // -> Défenseur de la Justice
             ")\\b"
+        }, {"majuscule non voulue",
+            "(?<!Vraie\\s)(?<!Vraies\\s)((?<=[\\w\\]«]\\s)|(?<=\\]))Magi?e"
         }, {"plusieurs espaces",
             "\\S\\s\\1+\\S"
         }, {"erreur de script",
