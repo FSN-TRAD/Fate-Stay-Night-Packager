@@ -105,12 +105,14 @@ public class TextProcess {
             "(\\b[Hh]ey\\b)|"+              // -> Hé
             "(\\b[Ss]igh*\\b)|"+            // -> Pff*
             "([Hh][ée]ro de [Jj]ustice)|"+  // -> Défenseur de la Justice
+            "(n°)|"+                        // -> numéro
+            "(\\dh\\b)|"+                   // -> 10 h
             "(\\b(([Uu]ne)|([LlSs]a))\\s((Master)|(Servant)))" // masculin
         }, {"minuscule au nom propre",
             "\\b("+
-            "(masters?)"+
-            "(servants?)"+
-            "(défenseur de la justice)|"+  // -> Défenseur de la Justice
+            "(masters?)|"+
+            "((?<!se\\s)servants?)|"+
+            "(défenseur de la justice)"+  // -> Défenseur de la Justice
             ")\\b"
         }, {"majuscule non voulue",
             "(?<!Vraie\\s)(?<!Vraies\\s)((?<=[\\w\\]«]\\s)|(?<=\\]))Magi?e"
