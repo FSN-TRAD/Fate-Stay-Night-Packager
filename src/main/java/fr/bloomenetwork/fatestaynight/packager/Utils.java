@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.zip.ZipEntry;
@@ -13,6 +14,7 @@ import java.util.zip.ZipInputStream;
 
 public class Utils {
 
+	private static final byte[] UTF8_BOM = {(byte)0xEF, (byte)0xBB, (byte)0xBF};
 	private static final String[] NUMBERS_JAP = {"", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"};
 	private static final int DEFAULT_BUFFER_SIZE = 1024;
 	public static final int INFO = 0;
@@ -117,7 +119,8 @@ public class Utils {
 		}
 		java.nio.file.Path path = Paths.get(fileName);
 		java.nio.file.Files.createDirectories(path.getParent());
-		java.nio.file.Files.write(path, content.getBytes(StandardCharsets.UTF_8));
+		java.nio.file.Files.write(path, UTF8_BOM);
+		java.nio.file.Files.writeString(path, content, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
 	}
 	
 
