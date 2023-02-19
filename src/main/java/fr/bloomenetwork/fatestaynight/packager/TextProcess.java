@@ -338,12 +338,10 @@ public class TextProcess {
             else if (line.startsWith("*page")) {
                 int pipeIndex = line.indexOf('|');
                 if (pipeIndex == -1) {
-                    report.apply("marquage de page incomplet (corrigé auto.)", -1);
+                    //report.apply("marquage de page incomplet", -1);
                     pipeIndex = "*page".length();
                     while (pipeIndex < line.length() && Character.isDigit(line.charAt(pipeIndex)))
                         pipeIndex++;
-                    String after = pipeIndex < line.length() ? line.substring(pipeIndex) : "";
-                    line = line.substring(0, pipeIndex) + "|" + after;
                 }
                 pageNumber.set(Integer.parseInt(line, "*page".length(), pipeIndex, 10)+1);
             }
