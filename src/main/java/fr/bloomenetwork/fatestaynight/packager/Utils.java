@@ -14,7 +14,7 @@ import java.util.zip.ZipInputStream;
 
 public class Utils {
 
-	private static final byte[] UTF8_BOM = {(byte)0xEF, (byte)0xBB, (byte)0xBF};
+	//private static final byte[] UTF8_BOM = {(byte)0xEF, (byte)0xBB, (byte)0xBF};
 	private static final String[] NUMBERS_JAP = {"", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"};
 	private static final int DEFAULT_BUFFER_SIZE = 1024;
 	public static final int INFO = 0;
@@ -119,8 +119,8 @@ public class Utils {
 		}
 		java.nio.file.Path path = Paths.get(fileName);
 		java.nio.file.Files.createDirectories(path.getParent());
-		java.nio.file.Files.write(path, UTF8_BOM);
-		java.nio.file.Files.writeString(path, content, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+		java.nio.file.Files.writeString(path, content, StandardCharsets.UTF_8,
+				StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
 	}
 	
 

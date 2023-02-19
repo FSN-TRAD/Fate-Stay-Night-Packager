@@ -328,6 +328,17 @@ public class TextProcess {
             return null;
         };
 
+        //verifie le BOM UTF-8, ajoute si nécessaire
+        int firstCharCode = text.codePointAt(0);
+        if (32 <= firstCharCode && firstCharCode < 128) // caractère imprimable
+            builder.append("\ufeff"); // ajoute le BOM manquant
+        else if (firstCharCode != 0xfeff) // erreur
+        {
+            Utils.print(String.format("%20s : caractère inattendu, code : %x\n",
+                                      fileName, firstCharCode));
+        }
+
+        //traite chaque ligne
         while(lineIterator.hasNext()) {
             String line = lineIterator.next();
             _line.set(line);
