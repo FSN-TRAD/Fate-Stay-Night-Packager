@@ -120,7 +120,8 @@ public class Utils {
 		java.nio.file.Path path = Paths.get(fileName);
 		java.nio.file.Files.createDirectories(path.getParent());
 		java.nio.file.Files.writeString(path, content, StandardCharsets.UTF_8,
-				StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
+				StandardOpenOption.CREATE, StandardOpenOption.WRITE,
+				StandardOpenOption.TRUNCATE_EXISTING);
 	}
 	
 
